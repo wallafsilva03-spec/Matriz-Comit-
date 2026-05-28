@@ -56,6 +56,8 @@ O nome de cada aba deve conter a **matriz** e a **data**:
 | `Matriz_Norte_2024-01` | Matriz Norte | 2024-01-01 |
 | `Sul 2024-02-15` | Sul | 2024-02-15 |
 | `Leste_03/2024` | Leste | 2024-03-01 |
+| `Comite 27.5` | Comite | 2025-05-27 (ano corrente) |
+| `Norte_27.05` | Norte | 2025-05-27 (ano corrente) |
 
 Caso a data não seja encontrada no nome, usa a data de modificação do arquivo.
 

@@ -2,7 +2,8 @@
 Lê todas as abas de um arquivo XLSX.
 
 Convenção do nome da aba:
-  - Formato esperado: "MATRIZ_YYYY-MM" ou "MATRIZ YYYY-MM" ou "MATRIZ_DD/MM/YYYY"
+  - Formato esperado: "MATRIZ_YYYY-MM", "MATRIZ YYYY-MM", "MATRIZ_DD/MM/YYYY"
+  - Também suportado: "27.5" (DD.M ou DD.MM → usa ano corrente como fallback)
   - Se não encontrar data, usa a data de modificação do arquivo como fallback.
 """
 import re
@@ -14,35 +15,54 @@ from utils.logger import get_logger
 
 log = get_logger("etl.reader")
 
-# Padrões de data suportados no nome da aba
+# Padrões de data suportados no nome da aba (ordem: mais específico primeiro)
 _DATE_PATTERNS = [
-    (r"(\d{4}[-/]\d{2}[-/]\d{2})", "%Y-%m-%d"),
-    (r"(\d{2}[-/]\d{2}[-/]\d{4})", "%d/%m/%Y"),
-    (r"(\d{4}[-/]\d{2})",          "%Y-%m"),
-    (r"(\d{2}[-/]\d{4})",          "%m/%Y"),
+    (r"(\d{4}[-/\.]\d{2}[-/\.]\d{2})", "%Y-%m-%d"),   # 2024-05-27 / 2024.05.27
+    (r"(\d{2}[-/\.]\d{2}[-/\.]\d{4})", "%d-%m-%Y"),   # 27-05-2024 / 27.05.2024
+    (r"(\d{4}[-/\.]\d{2})",            "%Y-%m"),       # 2024-05
+    (r"(\d{2}[-/\.]\d{4})",            "%m-%Y"),       # 05-2024
+    (r"(\d{1,2})\.(\d{1,2})",          "DD.MM"),       # 27.5 ou 27.05 → ano corrente
 ]
 
 
 def _extract_date(sheet_name: str) -> Optional[date]:
     for pattern, fmt in _DATE_PATTERNS:
         match = re.search(pattern, sheet_name)
-        if match:
-            raw = match.group(1).replace("/", "-")
-            fmt_norm = fmt.replace("/", "-")
+        if not match:
+            continue
+
+        # Caso especial: DD.MM sem ano (ex: "27.5")
+        if fmt == "DD.MM":
             try:
-                return datetime.strptime(raw, fmt_norm).date()
-            except ValueError:
+                day = int(match.group(1))
+                month = int(match.group(2))
+                year = datetime.now().year
+                return date(year, month, day)
+            except (ValueError, TypeError):
                 continue
+
+        # Normaliza separadores para hífen
+        raw = match.group(1).replace("/", "-").replace(".", "-")
+        fmt_norm = fmt.replace("/", "-").replace(".", "-")
+        try:
+            return datetime.strptime(raw, fmt_norm).date()
+        except ValueError:
+            continue
+
     return None
 
 
 def _extract_matriz(sheet_name: str, extracted_date: Optional[date]) -> str:
     """Remove a porção de data do nome da aba para obter o nome da matriz."""
     name = sheet_name
-    for pattern, _ in _DATE_PATTERNS:
-        name = re.sub(pattern, "", name)
+    for pattern, fmt in _DATE_PATTERNS:
+        if fmt == "DD.MM":
+            # Remove somente se o padrão DD.MM foi o que gerou a data
+            name = re.sub(r"\d{1,2}\.\d{1,2}", "", name)
+        else:
+            name = re.sub(pattern, "", name)
     # Remove separadores residuais
-    name = re.sub(r"[-_\s]+$", "", name).strip()
+    name = re.sub(r"[-_\.\s]+$", "", name).strip()
     return name if name else sheet_name
 
 
