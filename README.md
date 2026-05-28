@@ -1,71 +1,73 @@
-# Sistema ETL — Matriz Comitê → Supabase
+# Sistema Matriz Indicadores Comitê
+
+ETL profissional + Dashboard para consolidar, historiar e comparar indicadores de matrizes XLSX no Supabase.
+
+---
 
 ## Arquitetura
 
 ```
-data/input/*.xlsx
+uploads/*.xlsx
       │
       ▼
- XLSXReader          ← lê todas as abas, extrai matriz e data do nome
+excel_reader   ← abre XLSX, expande células mescladas, detecta cabeçalho
       │
- DataTransformer     ← normaliza colunas, serializa extras em dados_json
+parser         ← limpa, normaliza status (semáforo), calcula % resultado
       │
- DataValidator       ← remove linhas inválidas, valida campos obrigatórios
+database       ← insere/atualiza matrizes e indicadores, registra histórico
       │
- DataLoader          ← orquestra, move arquivos, registra logs
-      │
-      ▼
 PostgreSQL (Supabase)
-  ├── registros            ← tabela principal (dado mais recente)
-  ├── registros_historico  ← versões anteriores (histórico temporal)
-  ├── arquivos_processados ← log de cada arquivo processado
-  └── logs_etl             ← log geral de execução
+  ├── matrizes
+  ├── indicadores
+  ├── historico_indicadores
+  ├── arquivos_processados
+  └── logs_sistema
       │
-      ▼
-Excel / Power BI  (via vw_comparativo_geral / vw_evolucao_temporal)
+      ├── comparativo    → KPIs, rankings, tendências, heatmaps
+      └── exportador     → gera XLSX preservando layout do template
+            │
+            ▼
+      dashboard.py (Streamlit + Plotly)
 ```
 
-## Estrutura de Pastas
+---
+
+## Estrutura do Projeto
 
 ```
 /
-├── config/          configurações centralizadas (pydantic-settings)
-├── database/        conexão e operações no banco
-├── etl/             reader → transformer → validator → loader
-├── utils/           logger centralizado (loguru)
-├── scripts/
-│   ├── sql/         schema.sql (DDL completo)
-│   ├── generate_sample.py
-│   └── export_to_excel.py
-├── data/
-│   ├── input/       ← coloque os XLSX aqui
-│   ├── processed/   ← arquivos processados com sucesso
-│   └── error/       ← arquivos com falha
-├── logs/            arquivos de log diários
-├── main.py
+├── app/
+│   ├── main.py          CLI — processa arquivos, watch, export, status
+│   ├── dashboard.py     Streamlit — dashboard visual completo
+│   ├── excel_reader.py  Lê XLSX, expande mesclados, detecta header
+│   ├── parser.py        Limpa, normaliza, calcula resultado %
+│   ├── database.py      Conexão Supabase, upsert, histórico, queries
+│   ├── comparativo.py   KPIs, comparações, rankings, tendências
+│   ├── exportador.py    Gera XLSX mantendo layout do template
+│   ├── monitor.py       Watchdog — processa uploads automáticos
+│   └── utils.py         Logger, hash, parse de data/aba
+├── templates/
+│   └── modelo.xlsx      ← coloque aqui o modelo original da planilha
+├── uploads/             ← coloque novos XLSX aqui para processamento automático
+├── outputs/             ← planilhas exportadas pelo sistema
+├── logs/
+├── scripts/sql/
+│   └── schema.sql       DDL completo do banco
 ├── requirements.txt
 └── .env
 ```
 
+---
+
 ## Convenção de Nome de Aba
 
-O nome de cada aba deve conter a **matriz** e a **data**:
+| Nome da aba | tipo_quadro | matriz | data |
+|---|---|---|---|
+| `Quadro Geral - COP 27.05` | Quadro Geral | COP | 2025-05-27 |
+| `Quadro Detalhado - CEMMA 13.05` | Quadro Detalhado | CEMMA | 2025-05-13 |
+| `Quadro Geral Op.` | Quadro Geral Op. | — | — |
 
-| Exemplo de nome | Matriz extraída | Data extraída |
-|---|---|---|
-| `Matriz_Norte_2024-01` | Matriz Norte | 2024-01-01 |
-| `Sul 2024-02-15` | Sul | 2024-02-15 |
-| `Leste_03/2024` | Leste | 2024-03-01 |
-| `Comite 27.5` | Comite | 2025-05-27 (ano corrente) |
-| `Norte_27.05` | Norte | 2025-05-27 (ano corrente) |
-
-Caso a data não seja encontrada no nome, usa a data de modificação do arquivo.
-
-## Estratégia Anti-Duplicidade
-
-- Chave única: **SHA-256(nome + matriz + data_referencia)**
-- Se a chave já existe → registro ignorado (duplicado)
-- Se `nome + matriz` existe com data diferente → versão anterior vai para `registros_historico`
+---
 
 ## Instalação
 
@@ -75,45 +77,116 @@ cp .env.example .env
 # Edite o .env com suas credenciais do Supabase
 ```
 
+---
+
 ## Configuração do Supabase
 
-1. Crie um projeto em https://supabase.com
-2. Vá em **Settings → Database** e copie a **Connection String** (URI)
-3. Vá em **Settings → API** e copie a **URL** e a **anon/service_role key**
+1. Acesse seu projeto em https://supabase.com
+2. Copie a **Connection String (URI)** em Settings → Database
+3. Copie a **URL** e **anon key** em Settings → API
 4. Cole no `.env`
 
-## Uso
+---
+
+## Inicializar o Banco
 
 ```bash
-# Processar arquivos existentes + monitorar continuamente
-python main.py
-
-# Processar e sair
-python main.py --once
-
-# Processar um arquivo específico
-python main.py --file caminho/para/arquivo.xlsx
-
-# Ver comparativo no terminal
-python main.py --query
-
-# Gerar XLSX de exemplo
-python scripts/generate_sample.py
-
-# Exportar dados para Excel
-python scripts/export_to_excel.py
+python app/main.py --init
 ```
+
+---
+
+## Uso CLI
+
+```bash
+# Processar um arquivo específico
+python app/main.py --file uploads/minha_planilha.xlsx
+
+# Monitorar pasta automaticamente (detecta novos XLSX)
+python app/main.py --watch
+
+# Exportar todas as matrizes do banco para Excel
+python app/main.py --export
+
+# Ver KPIs e ranking no terminal
+python app/main.py --status
+```
+
+---
+
+## Dashboard
+
+```bash
+streamlit run app/dashboard.py
+```
+
+Acesse: http://localhost:8501
+
+### Páginas disponíveis
+
+| Página | Conteúdo |
+|---|---|
+| Visão Geral | KPIs, gauge de performance, ranking, críticos |
+| Evolução | Linha temporal por matriz e por indicador |
+| Comparativo | Heatmap de status, comparação entre datas e matrizes |
+| Indicadores | Tabela filtrada completa + download CSV |
+| Exportar | Gera XLSX preservando layout do template |
+
+---
+
+## Banco de Dados
+
+### Tabelas
+
+| Tabela | Descrição |
+|---|---|
+| `matrizes` | Uma linha por aba (matriz + tipo + data) |
+| `indicadores` | Um indicador por linha, com chave única |
+| `historico_indicadores` | Toda alteração de valor é registrada aqui |
+| `arquivos_processados` | Log de cada arquivo processado |
+| `logs_sistema` | Log geral de operações |
+
+### Views
+
+| View | Descrição |
+|---|---|
+| `vw_comparativo_geral` | Join completo indicadores × matrizes |
+| `vw_evolucao_temporal` | Com variação e LAG por período |
+| `vw_ranking_performance` | % atingido por matriz/data |
+
+---
+
+## Histórico Inteligente
+
+- Chave única: **SHA-256(nome_matriz + tipo_quadro + indicador + data)**
+- Se o indicador já existe com **mesmos valores** → ignorado (sem duplicata)
+- Se os **valores mudaram** → atualiza o registro e grava em `historico_indicadores`
+- Se é **nova data** → novo registro (histórico completo preservado)
+
+---
+
+## Template de Exportação
+
+Coloque o arquivo `Cópia de Modelo Matriz Indicadores Comitê.xlsx` em `templates/modelo.xlsx`.
+
+O sistema usará ele como base visual para todas as exportações, preservando:
+- Células mescladas
+- Cores e fontes
+- Bordas
+- Largura de colunas
+- Alinhamentos
+
+---
 
 ## Integração Power BI
 
 Conecte diretamente ao PostgreSQL do Supabase:
 
-- **Servidor:** `db.<project-id>.supabase.co`
-- **Porta:** `5432`
-- **Banco:** `postgres`
-- **Usuário:** `postgres`
-- Use as views `vw_comparativo_geral` e `vw_evolucao_temporal`
+```
+Servidor: db.<project-id>.supabase.co
+Porta:    5432
+Banco:    postgres
+Usuário:  postgres
+```
 
-## Integração Excel
-
-Use **Dados → Obter Dados → De Banco de Dados → Do PostgreSQL** com as mesmas credenciais acima, ou execute `scripts/export_to_excel.py` para gerar um `.xlsx` local.
+Use as views `vw_comparativo_geral` e `vw_evolucao_temporal` como fonte.
