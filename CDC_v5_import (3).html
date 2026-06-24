@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CDC – Aderência Frota Motriz</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f5f3;--surface:#fff;--border:#e8e8e4;--border-light:#f0f0ec;
+  --text:#1a1a18;--muted:#888880;--faint:#c8c8c0;
+  --green:#2d7a3a;--red:#b83232;--blue:#2b5fa6;
+  --cemma:#1e4f7a;--coplasa:#2d7a3a;--alm:#e67e22;
+  --meta:90;
+}
+html{font-size:14px}
+body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);min-height:100vh}
+
+/* TOPBAR */
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;gap:16px;height:52px;position:sticky;top:0;z-index:100}
+.brand{font-size:13px;font-weight:700;letter-spacing:.3px}
+.brand span{color:var(--muted);font-weight:400}
+.sep{width:1px;height:24px;background:var(--border);flex-shrink:0}
+.info-tag{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:3px 10px}
+.btn-import{display:flex;align-items:center;gap:7px;padding:6px 14px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:opacity .15s}
+.btn-import:hover{background:var(--border)}
+.btn-import svg{width:14px;height:14px;flex-shrink:0}
+.btn-print{margin-left:auto;display:flex;align-items:center;gap:7px;padding:6px 14px;background:var(--text);color:#fff;border:none;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:opacity .15s}
+.btn-print:hover{opacity:.8}
+.btn-print svg{width:14px;height:14px;flex-shrink:0}
+.print-title{display:none;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:12px}
+
+/* TABS */
+.tabs{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;display:flex;gap:4px;height:40px;align-items:center}
+
+/* PRINT */
+@media print{
+  @page{size:A4 landscape;margin:12mm 14mm}
+  .topbar,.tabs{display:none!important}
+  body{background:#fff!important}
+  .dash{display:block!important;padding:0!important;max-width:100%!important;page-break-after:always}
+  .dash:last-of-type{page-break-after:avoid}
+  .dash-header{margin-bottom:10px!important}
+  .kcard{box-shadow:none!important;border:1px solid #ddd!important}
+  .ccard{box-shadow:none!important;border:1px solid #ddd!important}
+  .chart-wrap{height:200px!important}
+  .print-title{display:block!important}
+}
+.tab{padding:5px 16px;border:none;background:none;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;border-radius:5px;transition:.12s}
+.tab:hover{background:var(--bg);color:var(--text)}
+.tab.active-cemma{background:var(--cemma);color:#fff}
+.tab.active-coplasa{background:var(--coplasa);color:#fff}
+.tab.active-alm{background:var(--alm);color:#fff}
+
+/* DASH */
+.dash{display:none;padding:20px 24px;max-width:1200px}
+.dash.visible{display:block}
+.dash-header{display:flex;align-items:baseline;gap:10px;margin-bottom:18px}
+.dash-header h2{font-size:20px;font-weight:700}
+.period{font-size:12px;color:var(--muted);font-family:'DM Mono',monospace}
+
+/* GRID */
+.row{display:grid;gap:12px;margin-bottom:12px}
+.r-kpi{grid-template-columns:repeat(4,1fr)}
+.r-chart{grid-template-columns:1fr}
+@media(max-width:800px){.r-kpi{grid-template-columns:1fr 1fr}}
+
+/* KPI CARD */
+.kcard{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px 20px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.kcard-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:8px}
+.kcard-val{font-size:38px;font-weight:700;line-height:1;font-family:'DM Mono',monospace}
+.kcard-val.green{color:var(--green)}
+.kcard-val.red{color:var(--red)}
+.kcard-val.neutral{color:var(--text)}
+.kcard-sub{font-size:11px;color:var(--muted);margin-top:6px}
+.kcard-meta{font-size:10px;color:var(--blue);margin-top:3px}
+
+/* CHART CARD */
+.ccard{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.ccard-head{padding:10px 16px 8px;border-bottom:1px solid var(--border-light);font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
+.ccard-body{padding:16px}
+.chart-wrap{height:240px;position:relative}
+
+/* LEGENDA CDC */
+.cdc-legend{font-size:11px;color:var(--muted);display:flex;gap:16px;flex-wrap:wrap}
+.cdc-legend span{display:flex;align-items:center;gap:5px}
+.dot{width:8px;height:8px;border-radius:2px;display:inline-block}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal-box{background:#fff;border-radius:12px;padding:28px 32px;max-width:540px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,.18)}
+.modal-title{font-size:16px;font-weight:700;margin-bottom:4px}
+.modal-desc{font-size:12px;color:var(--muted);margin-bottom:22px;line-height:1.6}
+.modal-desc code{font-family:'DM Mono',monospace;background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:1px 5px;font-size:11px}
+.modal-field{margin-bottom:18px}
+.modal-field-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);display:block;margin-bottom:6px}
+.modal-field input[type=file]{font-size:12px;width:100%;color:var(--text)}
+.modal-status{font-size:11px;margin-top:5px;min-height:16px;font-family:'DM Mono',monospace}
+.modal-status.ok{color:var(--green)}
+.modal-status.err{color:var(--red)}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px}
+.btn-cancel{padding:7px 18px;border:1px solid var(--border);border-radius:6px;background:#fff;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer}
+.btn-cancel:hover{background:var(--bg)}
+.btn-apply{padding:7px 18px;background:var(--text);color:#fff;border:none;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:opacity .15s}
+.btn-apply:hover{opacity:.8}
+.btn-apply:disabled{opacity:.4;cursor:not-allowed}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">🌿 CDC <span>/ Aderência Frota Motriz</span></div>
+  <div class="sep"></div>
+  <div class="info-tag">Cálculo: Normal / Total entradas &nbsp;·&nbsp; Contingência = Oper. 850917 ou 851389</div>
+  <button class="btn-import" onclick="abrirImport()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    Importar CSV
+  </button>
+  <button class="btn-print" onclick="imprimirPDF()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+    Imprimir / Salvar PDF
+  </button>
+</div>
+
+<!-- MODAL IMPORTAR CSV -->
+<div class="modal-overlay" id="modal-import">
+  <div class="modal-box">
+    <div class="modal-title">Importar CSVs</div>
+    <div class="modal-desc">
+      Separadores aceitos: <code>;</code> <code>,</code> <code>tab</code>. O sistema detecta automaticamente a
+      coluna de data (<code>DD/MM/AAAA</code>) e a coluna de operação com códigos
+      <code>850917</code> ou <code>851389</code> para classificar contingências.<br>
+      Importe um ou ambos os arquivos — apenas os campos alterados serão atualizados.
+    </div>
+
+    <div class="modal-field">
+      <label class="modal-field-label">CEMMA</label>
+      <input type="file" id="input-cemma" accept=".csv,.txt,.tsv">
+      <div class="modal-status" id="status-cemma"></div>
+    </div>
+
+    <div class="modal-field">
+      <label class="modal-field-label">COPLASA</label>
+      <input type="file" id="input-coplasa" accept=".csv,.txt,.tsv">
+      <div class="modal-status" id="status-coplasa"></div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="fecharImport()">Cancelar</button>
+      <button class="btn-apply" id="btn-apply" onclick="aplicarImport()">Aplicar</button>
+    </div>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab" id="tab-cemma"  onclick="setTab('cemma')">CEMMA &nbsp;·&nbsp; <span id="tab-label-cemma">20 dias</span></button>
+  <button class="tab" id="tab-coplasa" onclick="setTab('coplasa')">COPLASA &nbsp;·&nbsp; <span id="tab-label-coplasa">30 dias</span></button>
+  <button class="tab" id="tab-alm"    onclick="setTab('alm')">ALM (CEMMA + COPLASA)</button>
+</div>
+
+<!-- CEMMA -->
+<div class="dash" id="dash-cemma">
+  <div class="print-title">CDC — Aderência Frota Motriz &nbsp;·&nbsp; gerado em maio/2026</div>
+  <div class="dash-header">
+    <h2>CEMMA</h2>
+    <span class="period" id="period-cemma">01/05/2026 → 20/05/2026 &nbsp;·&nbsp; 20 dias</span>
+  </div>
+  <div class="row r-kpi">
+    <div class="kcard">
+      <div class="kcard-label">Aderência CDC</div>
+      <div class="kcard-val red" id="kpi-cemma-pct">85,07%</div>
+      <div class="kcard-sub">Normal / Total entradas</div>
+      <div class="kcard-meta">Meta: 90%</div>
+    </div>
+    <div class="kcard">
+      <div class="kcard-label">Total Entradas</div>
+      <div class="kcard-val neutral" id="kpi-cemma-total">5.740</div>
+      <div class="kcard-sub">No período</div>
+    </div>
+    <div class="kcard">
+      <div class="kcard-label">Entradas Normais</div>
+      <div class="kcard-val green" id="kpi-cemma-normal">4.883</div>
+      <div class="kcard-sub">Sem contingência</div>
+    </div>
+    <div class="kcard">
+      <div class="kcard-label">Contingências</div>
+      <div class="kcard-val red" id="kpi-cemma-cont">857</div>
+      <div class="kcard-sub">Oper. 850917 / 851389</div>
+    </div>
+  </div>
+  <div class="row r-chart">
+    <div class="ccard">
+      <div class="ccard-head">
+        <span>Evolução Diária — % CDC</span>
+        <div class="cdc-legend">
+          <span><i class="dot" style="background:var(--cemma)"></i>% CDC diário</span>
+          <span><i class="dot" style="background:var(--blue);opacity:.6"></i>Meta 90%</span>
+        </div>
+      </div>
+      <div class="ccard-body"><div class="chart-wrap"><canvas id="chart-cemma"></canvas></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- COPLASA -->
+<div class="dash" id="dash-coplasa">
+  <div class="print-title">CDC — Aderência Frota Motriz &nbsp;·&nbsp; gerado em maio/2026</div>
+  <div class="dash-header">
+    <h2>COPLASA</h2>
+    <span class="period" id="period-coplasa">21/04/2026 → 20/05/2026 &nbsp;·&nbsp; 30 dias</span>
+  </div>
+  <div class="row r-kpi">
+    <div class="kcard">
+      <div class="kcard-label">Aderência CDC</div>
+      <div class="kcard-val green" id="kpi-coplasa-pct">88,39%</div>
+      <div class="kcard-sub">Normal / Total entradas</div>
+      <div class="kcard-meta">Meta: 90%</div>
+    </div>
+    <div class="kcard">
+      <div class="kcard-label">Total Entradas</div>
+      <div class="kcard-val neutral" id="kpi-coplasa-total">17.601</div>
+      <div class="kcard-sub">No período</div>
+    </div>
+    <div class="kcard">
+      <div class="kcard-label">Entradas Normais</div>
+      <div class="kcard-val green" id="kpi-coplasa-normal">15.557</div>
+      <div class="kcard-sub">Sem contingência</div>
+    </div>
+    <div class="kcard">
+      <div class="kcard-label">Contingências</div>
+      <div class="kcard-val red" id="kpi-coplasa-cont">2.044</div>
+      <div class="kcard-sub">Oper. 850917 / 851389</div>
+    </div>
+  </div>
+  <div class="row r-chart">
+    <div class="ccard">
+      <div class="ccard-head">
+        <span>Evolução Diária — % CDC</span>
+        <div class="cdc-legend">
+          <span><i class="dot" style="background:var(--coplasa)"></i>% CDC diário</span>
+          <span><i class="dot" style="background:var(--blue);opacity:.6"></i>Meta 90%</span>
+        </div>
+      </div>
+      <div class="ccard-body"><div class="chart-wrap"><canvas id="chart-coplasa"></canvas></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ALM -->
+<div class="dash" id="dash-alm">
+  <div class="print-title">CDC — Aderência Frota Motriz &nbsp;·&nbsp; gerado em maio/2026</div>
+  <div class="dash-header">
+    <h2>ALM — D.M. AGRICOLA LTDA</h2>
+    <span class="period">Consolidado CEMMA + COPLASA</span>
+  </div>
+  <div class="row r-kpi">
+    <div class="kcard">
+      <div class="kcard-label">Aderência CDC</div>
+      <div class="kcard-val red" id="kpi-alm-pct">87,68%</div>
+      <div class="kcard-sub">Normal / Total entradas</div>
+      <div class="kcard-meta">Meta: 90%</div>
+    </div>
+    <div class="kcard">
+      <div class="kcard-label">Total Entradas</div>
+      <div class="kcard-val neutral" id="kpi-alm-total">23.341</div>
+      <div class="kcard-sub">CEMMA + COPLASA</div>
+    </div>
+    <div class="kcard">
+      <div class="kcard-label">Entradas Normais</div>
+      <div class="kcard-val green" id="kpi-alm-normal">20.440</div>
+      <div class="kcard-sub">Sem contingência</div>
+    </div>
+    <div class="kcard">
+      <div class="kcard-label">Contingências</div>
+      <div class="kcard-val red" id="kpi-alm-cont">2.901</div>
+      <div class="kcard-sub">Oper. 850917 / 851389</div>
+    </div>
+  </div>
+  <div class="row r-chart">
+    <div class="ccard">
+      <div class="ccard-head">
+        <span>Evolução Diária — % CDC (dias com dados de ambas as unidades)</span>
+        <div class="cdc-legend">
+          <span><i class="dot" style="background:var(--alm)"></i>% CDC diário</span>
+          <span><i class="dot" style="background:var(--blue);opacity:.6"></i>Meta 90%</span>
+        </div>
+      </div>
+      <div class="ccard-body"><div class="chart-wrap"><canvas id="chart-alm"></canvas></div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const META = 90;
+const COR = { cemma:'#1e4f7a', coplasa:'#2d7a3a', alm:'#e67e22', blue:'#2b5fa6', green:'#2d7a3a', red:'#b83232' };
+const CHARTS = {};
+
+// ── DADOS REAIS DOS CSVs ──────────────────────────────────────
+const DADOS = {
+  cemma: {
+    total:5740, cont:857, normal:4883, pct:85.07,
+    dias:[
+      {label:"01/05",total:80,  cont:15, normal:65,  pct:81.25},
+      {label:"02/05",total:170, cont:22, normal:148, pct:87.06},
+      {label:"03/05",total:279, cont:50, normal:229, pct:82.08},
+      {label:"04/05",total:306, cont:54, normal:252, pct:82.35},
+      {label:"05/05",total:230, cont:40, normal:190, pct:82.61},
+      {label:"06/05",total:105, cont:10, normal:95,  pct:90.48},
+      {label:"07/05",total:365, cont:54, normal:311, pct:85.21},
+      {label:"08/05",total:357, cont:34, normal:323, pct:90.48},
+      {label:"09/05",total:362, cont:48, normal:314, pct:86.74},
+      {label:"10/05",total:373, cont:113,normal:260, pct:69.71},
+      {label:"11/05",total:320, cont:31, normal:289, pct:90.31},
+      {label:"12/05",total:345, cont:47, normal:298, pct:86.38},
+      {label:"13/05",total:377, cont:50, normal:327, pct:86.74},
+      {label:"14/05",total:384, cont:56, normal:328, pct:85.42},
+      {label:"15/05",total:335, cont:67, normal:268, pct:80.00},
+      {label:"16/05",total:380, cont:65, normal:315, pct:82.89},
+      {label:"17/05",total:265, cont:45, normal:220, pct:83.02},
+      {label:"18/05",total:72,  cont:17, normal:55,  pct:76.39},
+      {label:"19/05",total:249, cont:13, normal:236, pct:94.78},
+      {label:"20/05",total:386, cont:26, normal:360, pct:93.26}
+    ]
+  },
+  coplasa: {
+    total:17601, cont:2044, normal:15557, pct:88.39,
+    dias:[
+      {label:"21/04",total:562, cont:110,normal:452, pct:80.43},
+      {label:"22/04",total:621, cont:61, normal:560, pct:90.18},
+      {label:"23/04",total:603, cont:57, normal:546, pct:90.55},
+      {label:"24/04",total:613, cont:62, normal:551, pct:89.89},
+      {label:"25/04",total:626, cont:67, normal:559, pct:89.30},
+      {label:"26/04",total:635, cont:81, normal:554, pct:87.24},
+      {label:"27/04",total:633, cont:64, normal:569, pct:89.89},
+      {label:"28/04",total:659, cont:59, normal:600, pct:91.05},
+      {label:"29/04",total:609, cont:69, normal:540, pct:88.67},
+      {label:"30/04",total:611, cont:50, normal:561, pct:91.82},
+      {label:"01/05",total:656, cont:49, normal:607, pct:92.53},
+      {label:"02/05",total:649, cont:61, normal:588, pct:90.60},
+      {label:"03/05",total:625, cont:81, normal:544, pct:87.04},
+      {label:"04/05",total:524, cont:40, normal:484, pct:92.37},
+      {label:"05/05",total:594, cont:87, normal:507, pct:85.35},
+      {label:"06/05",total:641, cont:103,normal:538, pct:83.93},
+      {label:"07/05",total:662, cont:65, normal:597, pct:90.18},
+      {label:"08/05",total:644, cont:78, normal:566, pct:87.89},
+      {label:"09/05",total:575, cont:79, normal:496, pct:86.26},
+      {label:"10/05",total:592, cont:98, normal:494, pct:83.45},
+      {label:"11/05",total:617, cont:95, normal:522, pct:84.60},
+      {label:"12/05",total:606, cont:81, normal:525, pct:86.63},
+      {label:"13/05",total:656, cont:86, normal:570, pct:86.89},
+      {label:"14/05",total:643, cont:84, normal:559, pct:86.94},
+      {label:"15/05",total:243, cont:33, normal:210, pct:86.42},
+      {label:"16/05",total:392, cont:49, normal:343, pct:87.50},
+      {label:"17/05",total:305, cont:41, normal:264, pct:86.56},
+      {label:"18/05",total:532, cont:49, normal:483, pct:90.79},
+      {label:"19/05",total:629, cont:45, normal:584, pct:92.85},
+      {label:"20/05",total:644, cont:60, normal:584, pct:90.68}
+    ]
+  }
+};
+
+// ── ALM: consolida CEMMA + COPLASA ────────────────────────────
+function buildALM() {
+  const mapa = {};
+  DADOS.coplasa.dias.forEach(d => {
+    if (!mapa[d.label]) mapa[d.label] = {label:d.label,total:0,cont:0,normal:0};
+    mapa[d.label].total  += d.total;
+    mapa[d.label].cont   += d.cont;
+    mapa[d.label].normal += d.normal;
+  });
+  DADOS.cemma.dias.forEach(d => {
+    if (!mapa[d.label]) mapa[d.label] = {label:d.label,total:0,cont:0,normal:0};
+    mapa[d.label].total  += d.total;
+    mapa[d.label].cont   += d.cont;
+    mapa[d.label].normal += d.normal;
+  });
+  const dias = Object.values(mapa).map(d => ({
+    ...d,
+    pct: parseFloat((d.normal/d.total*100).toFixed(2))
+  }));
+  const parse = l => { const [dd,mm]=l.split('/'); return parseInt(mm)*100+parseInt(dd); };
+  dias.sort((a,b)=>parse(a.label)-parse(b.label));
+  const total  = DADOS.cemma.total + DADOS.coplasa.total;
+  const cont   = DADOS.cemma.cont  + DADOS.coplasa.cont;
+  const normal = total - cont;
+  DADOS.alm = { total, cont, normal, pct:parseFloat((normal/total*100).toFixed(2)), dias };
+}
+buildALM();
+
+// ── GRÁFICOS ─────────────────────────────────────────────────
+function buildChart(id, unidade) {
+  if (CHARTS[id]) { CHARTS[id].destroy(); delete CHARTS[id]; }
+  const d = DADOS[unidade];
+  const cor = COR[unidade];
+  const vals = d.dias.map(x=>x.pct);
+  const minV = Math.min(...vals);
+  const yMin = Math.max(0, Math.floor((minV-8)/5)*5);
+
+  CHARTS[id] = new Chart(document.getElementById(id), {
+    type:'line',
+    data:{
+      labels: d.dias.map(x=>x.label),
+      datasets:[
+        {
+          label:'% CDC',
+          data: vals,
+          borderColor: cor,
+          backgroundColor: cor+'18',
+          fill: true,
+          tension: .3,
+          pointRadius: 4,
+          pointBackgroundColor: vals.map(v => v>=META ? COR.green : COR.red),
+          pointBorderColor: '#fff',
+          pointBorderWidth: 1.5,
+          borderWidth: 2
+        },
+        {
+          label:'Meta 90%',
+          data: vals.map(()=>META),
+          borderColor: COR.blue,
+          borderDash:[5,4],
+          pointRadius:0,
+          borderWidth:1.5,
+          fill:false
+        }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          callbacks:{
+            label: ctx => ` ${ctx.dataset.label}: ${ctx.raw.toFixed(2)}%`,
+            afterBody: (items) => {
+              const i = items[0].dataIndex;
+              const dia = d.dias[i];
+              return [
+                `  Normal: ${dia.normal.toLocaleString('pt-BR')}`,
+                `  Contingência: ${dia.cont.toLocaleString('pt-BR')}`,
+                `  Total: ${dia.total.toLocaleString('pt-BR')}`
+              ];
+            }
+          }
+        }
+      },
+      scales:{
+        y:{
+          min:yMin, max:100,
+          grid:{color:'#f0f0ec'},
+          ticks:{callback:v=>v+'%', font:{size:11,family:'DM Mono'}, color:'#888'}
+        },
+        x:{
+          grid:{display:false},
+          ticks:{font:{size:11}, color:'#888', maxRotation:40}
+        }
+      }
+    }
+  });
+}
+
+// ── KPIs ─────────────────────────────────────────────────────
+function fmt(n) { return n.toLocaleString('pt-BR'); }
+
+function updateKPIs(u) {
+  const d = DADOS[u];
+  const pctEl = document.getElementById('kpi-'+u+'-pct');
+  pctEl.textContent = d.pct.toFixed(2).replace('.',',') + '%';
+  pctEl.className = 'kcard-val ' + (d.pct >= META ? 'green' : 'red');
+  document.getElementById('kpi-'+u+'-total').textContent  = fmt(d.total);
+  document.getElementById('kpi-'+u+'-normal').textContent = fmt(d.normal);
+  document.getElementById('kpi-'+u+'-cont').textContent   = fmt(d.cont);
+}
+
+function updatePeriod(u) {
+  const dias = DADOS[u].dias;
+  if (!dias || !dias.length) return;
+  const first = dias[0].label;
+  const last  = dias[dias.length-1].label;
+  const el = document.getElementById('period-'+u);
+  if (el) el.textContent = `${first} → ${last}  ·  ${dias.length} dias`;
+  const tabEl = document.getElementById('tab-label-'+u);
+  if (tabEl) tabEl.textContent = dias.length + ' dias';
+}
+
+// ── TABS ─────────────────────────────────────────────────────
+function setTab(u) {
+  ['cemma','coplasa','alm'].forEach(x => {
+    document.getElementById('tab-'+x).className = 'tab';
+    document.getElementById('dash-'+x).classList.remove('visible');
+  });
+  document.getElementById('tab-'+u).className = 'tab active-'+u;
+  document.getElementById('dash-'+u).classList.add('visible');
+}
+
+// ── INIT ─────────────────────────────────────────────────────
+buildChart('chart-cemma',   'cemma');
+buildChart('chart-coplasa', 'coplasa');
+buildChart('chart-alm',     'alm');
+setTab('coplasa');
+
+// ── IMPORTAR CSV ──────────────────────────────────────────────
+function abrirImport() {
+  document.getElementById('status-cemma').textContent   = '';
+  document.getElementById('status-cemma').className     = 'modal-status';
+  document.getElementById('status-coplasa').textContent = '';
+  document.getElementById('status-coplasa').className   = 'modal-status';
+  document.getElementById('input-cemma').value    = '';
+  document.getElementById('input-coplasa').value  = '';
+  document.getElementById('modal-import').classList.add('open');
+}
+
+function fecharImport() {
+  document.getElementById('modal-import').classList.remove('open');
+}
+
+// Fecha modal ao clicar fora
+document.getElementById('modal-import').addEventListener('click', function(e) {
+  if (e.target === this) fecharImport();
+});
+
+function readFile(input) {
+  return new Promise((resolve, reject) => {
+    if (!input.files || !input.files[0]) { resolve(null); return; }
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result);
+    reader.onerror = () => reject(new Error('Erro ao ler arquivo'));
+    // Tenta UTF-8, depois latin1 como fallback no catch
+    reader.readAsText(input.files[0], 'UTF-8');
+  });
+}
+
+function detectSep(text) {
+  const line = text.split('\n')[0];
+  const semis  = (line.match(/;/g)  || []).length;
+  const commas = (line.match(/,/g)  || []).length;
+  const tabs   = (line.match(/\t/g) || []).length;
+  if (tabs > semis && tabs > commas) return '\t';
+  return semis >= commas ? ';' : ',';
+}
+
+function parseCSVData(text) {
+  // Remove BOM (arquivos Excel UTF-8)
+  const clean = text.replace(/^﻿/, '');
+  const sep = detectSep(clean);
+  const lines = clean.trim().split('\n').map(l =>
+    l.replace(/\r$/, '').split(sep).map(c => c.trim().replace(/^"|"$/g, ''))
+  );
+  if (lines.length < 2) return { error: 'Arquivo muito curto (menos de 2 linhas).' };
+
+  // Normaliza string: minúsculo sem acento
+  const norm = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+  const dateKws = [
+    'dia balanca','dia bal','balanca','dt balanca',
+    'data operacao','data de operacao','data oper','data colheita','data','dt oper',
+    'dt_oper','dtoper','date','dia'
+  ];
+  const operKws = [
+    'oper.carreg','oper carreg','operacao de carregamento','operacao carreg',
+    'cod oper','cod_oper','codoper','codigo oper','oper','cod carregamento'
+  ];
+
+  // Verifica se um valor de operação é contingência (prefixo 850917 ou 851389)
+  function isCont(v) {
+    const s = (v || '').trim();
+    return s.startsWith('850917') || s.startsWith('851389');
+  }
+
+  function findCols(headerRow) {
+    const h = headerRow.map(norm);
+    let dc = -1;
+    // Todas as colunas de operação (pode haver Oper.Carreg./Colhed. 1..4)
+    const ocs = [];
+    for (const kw of dateKws) { dc = h.findIndex(x => x.includes(kw)); if (dc !== -1) break; }
+    h.forEach((x, i) => { for (const kw of operKws) { if (x.includes(kw)) { ocs.push(i); break; } } });
+    return { dc, ocs };
+  }
+
+  // ─ Busca o cabeçalho real nas primeiras 30 linhas ─
+  let headerIdx = 0;
+  let dateCol = -1, operCols = [];
+
+  for (let i = 0; i < Math.min(lines.length - 1, 30); i++) {
+    const { dc, ocs } = findCols(lines[i]);
+    if (dc !== -1 || ocs.length > 0) {
+      headerIdx = i;
+      dateCol   = dc;
+      operCols  = ocs;
+      break;
+    }
+  }
+
+  // ─ Se não achou data por cabeçalho, tenta por padrão de valor ─
+  if (dateCol === -1) {
+    for (let i = 0; i < Math.min(lines.length - 1, 30); i++) {
+      for (let c = 0; c < lines[i].length; c++) {
+        const v = (lines[i][c] || '').trim();
+        if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(v) || /^\d{4}-\d{2}-\d{2}/.test(v)) {
+          headerIdx = Math.max(0, i - 1);
+          dateCol = c;
+          break;
+        }
+      }
+      if (dateCol !== -1) break;
+    }
+  }
+
+  // ─ Se não achou coluna de operação por cabeçalho, detecta por valor ─
+  if (operCols.length === 0) {
+    const sample = lines.slice(headerIdx + 1, Math.min(lines.length, headerIdx + 101));
+    for (let c = 0; c < (lines[headerIdx + 1] || []).length; c++) {
+      for (const row of sample) {
+        if (isCont(row[c])) { operCols.push(c); break; }
+      }
+    }
+    // Remove duplicatas
+    operCols = [...new Set(operCols)];
+  }
+
+  if (dateCol === -1) return {
+    error: 'Coluna de data não encontrada. Esperado: "Dia Balança", "Data" ou datas DD/MM/AAAA.'
+  };
+  if (operCols.length === 0) return {
+    error: 'Coluna de operação não encontrada. Nenhuma coluna contém os códigos 850917 ou 851389.'
+  };
+
+  // ─ Agrupamento por data ─
+  // Cada slot Oper.Carreg./Colhed. preenchido = 1 entrada
+  // (uma linha com 3 carretas = 3 entradas; slot vazio = não conta)
+  const mapa = {};
+  let rowCount = 0;
+  for (let r = headerIdx + 1; r < lines.length; r++) {
+    const row = lines[r];
+    if (!row || row.join('').trim() === '') continue;
+
+    const dateStr = (row[dateCol] || '').trim();
+    if (!dateStr) continue;
+    rowCount++;
+
+    let label;
+    if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(dateStr)) {
+      const parts = dateStr.split('/');
+      label = parts[0].padStart(2,'0') + '/' + parts[1].padStart(2,'0');
+    } else if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+      const [, mm, dd] = dateStr.split('-');
+      label = dd + '/' + mm;
+    } else {
+      continue;
+    }
+
+    if (!mapa[label]) mapa[label] = { label, total:0, cont:0 };
+
+    // Conta cada caçambada/carreta individualmente
+    for (const c of operCols) {
+      const oper = (row[c] || '').trim();
+      if (!oper) continue;           // slot vazio → não conta
+      mapa[label].total++;
+      if (isCont(oper)) mapa[label].cont++;
+    }
+  }
+
+  if (Object.keys(mapa).length === 0) return {
+    error: `Nenhum dado válido. Cabeçalho na linha ${headerIdx + 1}: "${lines[headerIdx].slice(0,6).join(' | ')}…". Verifique o formato das datas.`
+  };
+
+  const parse = l => { const [dd,mm]=l.split('/'); return parseInt(mm)*100+parseInt(dd); };
+  const dias = Object.values(mapa)
+    .map(d => ({
+      label:  d.label,
+      total:  d.total,
+      cont:   d.cont,
+      normal: d.total - d.cont,
+      pct:    parseFloat(((d.total - d.cont) / d.total * 100).toFixed(2))
+    }))
+    .sort((a,b) => parse(a.label)-parse(b.label));
+
+  const total  = dias.reduce((s,d) => s+d.total,  0);
+  const cont   = dias.reduce((s,d) => s+d.cont,   0);
+  const normal = total - cont;
+  const hdr    = lines[headerIdx];
+
+  return {
+    total, cont, normal,
+    pct:  parseFloat((normal/total*100).toFixed(2)),
+    dias,
+    _info: `${rowCount} pesagens · ${total} caçambadas · data: "${hdr[dateCol]}" · ${dias.length} dias`
+  };
+}
+
+async function aplicarImport() {
+  const btn = document.getElementById('btn-apply');
+  btn.disabled = true;
+  btn.textContent = 'Processando…';
+
+  let changed = false;
+
+  async function processar(inputId, statusId, unidade) {
+    const input  = document.getElementById(inputId);
+    const status = document.getElementById(statusId);
+    if (!input.files || !input.files[0]) return;
+
+    try {
+      const text = await readFile(input);
+      const result = parseCSVData(text);
+      if (result.error) {
+        status.textContent = '✗ ' + result.error;
+        status.className = 'modal-status err';
+      } else {
+        DADOS[unidade] = result;
+        status.textContent = '✓ ' + result._info;
+        status.className = 'modal-status ok';
+        changed = true;
+      }
+    } catch(e) {
+      status.textContent = '✗ Erro ao ler arquivo: ' + e.message;
+      status.className = 'modal-status err';
+    }
+  }
+
+  await processar('input-cemma',   'status-cemma',   'cemma');
+  await processar('input-coplasa', 'status-coplasa', 'coplasa');
+
+  if (changed) {
+    buildALM();
+    ['cemma','coplasa','alm'].forEach(u => {
+      updateKPIs(u);
+      updatePeriod(u);
+      buildChart('chart-'+u, u);
+    });
+    setTimeout(fecharImport, 800);
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Aplicar';
+}
+
+// ── IMPRIMIR PDF ──────────────────────────────────────────────
+function imprimirPDF() {
+  ['cemma','coplasa','alm'].forEach(u => {
+    document.getElementById('dash-'+u).classList.add('visible');
+  });
+  setTimeout(() => {
+    window.print();
+    setTimeout(() => {
+      const aba = document.querySelector('.tab.active-cemma, .tab.active-coplasa, .tab.active-alm');
+      const atual = aba ? aba.id.replace('tab-','') : 'coplasa';
+      ['cemma','coplasa','alm'].forEach(u => {
+        if (u !== atual) document.getElementById('dash-'+u).classList.remove('visible');
+      });
+    }, 500);
+  }, 300);
+}
+</script>
+</body>
+</html>
