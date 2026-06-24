@@ -172,7 +172,7 @@
     <div class="stats">
       <div class="stat-item">
         <label>Total</label>
-        <div class="value total">412</div>
+        <div class="value total">399</div>
         <div class="sub">atendimentos</div>
       </div>
       <div class="stat-item">
@@ -182,32 +182,31 @@
       </div>
       <div class="stat-item">
         <label>Canceladas</label>
-        <div class="value vermelho">47</div>
+        <div class="value vermelho">34</div>
         <div class="sub">não<br>realizadas</div>
       </div>
     </div>
     <div class="chart-area">
       <div class="donut-wrap">
         <svg viewBox="0 0 100 100">
-          <!-- Verde: 88.59% = 318.9° -->
           <circle cx="50" cy="50" r="38" fill="none" stroke="#E0E0E0" stroke-width="14"/>
-          <!-- Canceladas (vermelho) primeiro, depois concluídas (verde) por cima -->
           <circle cx="50" cy="50" r="38" fill="none" stroke="#E53935" stroke-width="14"
             stroke-dasharray="238.76" stroke-dashoffset="0"
             transform="rotate(-90 50 50)"/>
+          <!-- Verde: 91.48% → 0.9148 * 238.76 = 218.36, gap = 20.40 -->
           <circle cx="50" cy="50" r="38" fill="none" stroke="#1DB954" stroke-width="14"
-            stroke-dasharray="211.57 27.19"
+            stroke-dasharray="218.36 20.40"
             stroke-dashoffset="0"
             transform="rotate(-90 50 50)"/>
         </svg>
         <div class="donut-center">
-          <div class="pct">88,59%</div>
+          <div class="pct">91,48%</div>
           <div class="label">aderência</div>
         </div>
       </div>
       <div class="donut-legend">
-        <span class="dot-verde">●</span> Concluídas 88,59%<br>
-        <span class="dot-vermelho">●</span> Canceladas 11,41%
+        <span class="dot-verde">●</span> Concluídas 91,48%<br>
+        <span class="dot-vermelho">●</span> Canceladas 8,52%
       </div>
     </div>
   </div>
@@ -215,11 +214,11 @@
   <div class="card-footer">
     <div class="footer-item">
       <span class="ft-label verde">Aderência</span>
-      <span class="ft-value verde">88,59%</span>
+      <span class="ft-value verde">91,48%</span>
     </div>
     <div class="footer-item">
       <span class="ft-label vermelho">Cancelamentos</span>
-      <span class="ft-value vermelho">11,41%</span>
+      <span class="ft-value vermelho">8,52%</span>
     </div>
   </div>
 </div>
@@ -234,7 +233,7 @@
     <div class="stats">
       <div class="stat-item">
         <label>Total</label>
-        <div class="value total">579</div>
+        <div class="value total">565</div>
         <div class="sub">atendimentos</div>
       </div>
       <div class="stat-item">
@@ -244,7 +243,7 @@
       </div>
       <div class="stat-item">
         <label>Canceladas</label>
-        <div class="value vermelho">61</div>
+        <div class="value vermelho">47</div>
         <div class="sub">não<br>realizadas</div>
       </div>
     </div>
@@ -255,20 +254,20 @@
           <circle cx="50" cy="50" r="38" fill="none" stroke="#E53935" stroke-width="14"
             stroke-dasharray="238.76" stroke-dashoffset="0"
             transform="rotate(-90 50 50)"/>
-          <!-- Verde: 89.46% → dasharray = 0.8946 * 238.76 = 213.67, gap = 25.09 -->
+          <!-- Verde: 91.68% → 0.9168 * 238.76 = 218.84, gap = 19.92 -->
           <circle cx="50" cy="50" r="38" fill="none" stroke="#1DB954" stroke-width="14"
-            stroke-dasharray="213.67 25.09"
+            stroke-dasharray="218.84 19.92"
             stroke-dashoffset="0"
             transform="rotate(-90 50 50)"/>
         </svg>
         <div class="donut-center">
-          <div class="pct">89,46%</div>
+          <div class="pct">91,68%</div>
           <div class="label">aderência</div>
         </div>
       </div>
       <div class="donut-legend">
-        <span class="dot-verde">●</span> Concluídas 89,46%<br>
-        <span class="dot-vermelho">●</span> Canceladas 10,54%
+        <span class="dot-verde">●</span> Concluídas 91,68%<br>
+        <span class="dot-vermelho">●</span> Canceladas 8,32%
       </div>
     </div>
   </div>
@@ -276,17 +275,17 @@
   <div class="card-footer">
     <div class="footer-item">
       <span class="ft-label verde">Aderência</span>
-      <span class="ft-value verde">89,46%</span>
+      <span class="ft-value verde">91,68%</span>
     </div>
     <div class="footer-item">
       <span class="ft-label vermelho">Cancelamentos</span>
-      <span class="ft-value vermelho">10,54%</span>
+      <span class="ft-value vermelho">8,32%</span>
     </div>
   </div>
 </div>
 
 <footer>
-  Total geral: 991 atendimentos &nbsp;·&nbsp; CEM 412 &nbsp;·&nbsp; CEMMA 267 &nbsp;·&nbsp; COPLASA 312
+  Total geral: 964 atendimentos &nbsp;·&nbsp; CEM 399 &nbsp;·&nbsp; CEMMA 260 &nbsp;·&nbsp; COPLASA 305
 </footer>
 
 </body>
