@@ -222,21 +222,44 @@ function acc() {
     }; 
 }
 
+// Normaliza nome de coluna: minúsculo, sem acento, espaços colapsados
+function normKey(s) {
+    return String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[\s_]+/g, ' ').trim();
+}
+// Cache de mapa normalizado por linha (tolerante a variações de cabeçalho)
+const _rowMapCache = new WeakMap();
+function col(r, ...cands) {
+    let m = _rowMapCache.get(r);
+    if (!m) { m = {}; for (const k in r) m[normKey(k)] = r[k]; _rowMapCache.set(r, m); }
+    for (const c of cands) {
+        const v = m[normKey(c)];
+        if (v !== undefined && v !== null && v !== '') return v;
+    }
+    return undefined;
+}
+
 function processRows(rows) {
     const fCol = new Map(), fTr = new Map(), datas = new Set();
-    
+
     for (const r of rows) {
-        let fr = r.Frente, md = r.Modelo || '', eq = r.Equipamento || '', at = String(r.Atividade || '').toUpperCase();
-        let tp = num(r['Tempo Decimal']), rpm = num(r.RPM);
+        let fr = col(r, 'Frente');
+        let md = col(r, 'Modelo') || '';
+        // Equipamento aceita sinônimos comuns (Frota, Prefixo, etc.)
+        let eq = col(r, 'Equipamento', 'Frota', 'Prefixo', 'Frota Motriz', 'Equip', 'Equipamento Motriz') || '';
+        let at = String(col(r, 'Atividade') || '').toUpperCase();
+        let tp = num(col(r, 'Tempo Decimal', 'Tempo (h)', 'Tempo Decimal (h)', 'Tempo'));
+        let rpm = num(col(r, 'RPM'));
         // Velocidade NORMAL — usada em TODOS os indicadores, exceto Velocidade Média
-        let vl = num(r.Velocidade);
+        let vl = num(col(r, 'Velocidade'));
         // Velocidade EFETIVO — usada SOMENTE na Velocidade Média (Tempo Efetivo)
-        let vlEfetivo = num(r['Velocidade Efetivo'] != null ? r['Velocidade Efetivo'] : r.Velocidade);
+        let ve = col(r, 'Velocidade Efetivo');
+        let vlEfetivo = num(ve != null ? ve : col(r, 'Velocidade'));
         // RPM Extrator — usa a coluna "RPM Extrator Efetivo" (Tempo Efetivo); fallback p/ "RPM Extrator Prim"
-        let rpm_ext = num(r['RPM Extrator Efetivo'] != null ? r['RPM Extrator Efetivo'] : (r['RPM Extrator Prim'] || 0));
+        let rpmExtEf = col(r, 'RPM Extrator Efetivo');
+        let rpm_ext = num(rpmExtEf != null ? rpmExtEf : col(r, 'RPM Extrator Prim'));
         if (!fr) continue;
         fr = String(fr).split(' - ')[0];
-        const d = dia(r.Data); 
+        const d = dia(col(r, 'Data'));
         datas.add(d);
         const cf = classif(fr);
         const trator = isTrator(md);
@@ -248,7 +271,7 @@ function processRows(rows) {
         A.eq.add(eq);
         A.total += tp;   // Tempo Total = soma de TODOS os tempos do dia
         
-        let cl = String(r.Classificacao_Ativ || '').toUpperCase();
+        let cl = String(col(r, 'Classificacao_Ativ', 'Classificacao Ativ', 'Classificacao', 'Classificacao Atividade', 'Classif Ativ') || '').toUpperCase();
         const ehCorteCana = at.includes('CORTE CANA MECANIZADO');
 
         if (cl.includes('PRODUT')) {
