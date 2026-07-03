@@ -350,8 +350,8 @@ function processRows(rows) {
         const nEquip = Math.round(s.n / nd) || 1;   // nº de equipamentos da frente (Qtd. Equip.)
         colFrente.push({
             frente: nm, classif: data.classif, n: nEquip,
-            // Corte + Manobra = SOMENTE o Tempo Decimal Produtivo, média por dia
-            disponib: s.dis / nd, corte_manobra: s.prodTotal / nd,
+            // Corte + Manobra = Tempo Decimal Produtivo ÷ dias ÷ nº de máquinas (média diária por máquina)
+            disponib: s.dis / nd, corte_manobra: s.prodTotal / nd / nEquip,
             vel_med: s.vel_col_cnt > 0 ? s.vel_col_sum / s.vel_col_cnt : 0, 
             troca_t: s.tr / nd, ag_trator: s.ag / nd, abastec: s.ab / nd, 
             rpm_extrator: s.crpm_ext > 0 ? s.rpm_ext / s.crpm_ext : 0 
