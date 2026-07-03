@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Aderência de Atendimento</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #F5F5F5;
+      padding: 32px 40px 24px;
+      color: #212121;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 28px;
+    }
+    header .title h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #9E9E9E;
+    }
+    header .title p {
+      font-size: 12px;
+      color: #BDBDBD;
+      margin-top: 2px;
+    }
+    header .periodo {
+      font-size: 12px;
+      color: #9E9E9E;
+      margin-top: 6px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      border: 1px solid #E0E0E0;
+      padding: 24px 28px 20px;
+      margin-bottom: 20px;
+    }
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .card-header h2 {
+      font-size: 18px;
+      font-weight: 700;
+      color: #212121;
+    }
+    .badge {
+      background: #E3F2FD;
+      color: #1565C0;
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+    .card-body {
+      display: flex;
+      align-items: center;
+      gap: 0;
+    }
+    .stats {
+      display: flex;
+      gap: 40px;
+      flex: 1;
+    }
+    .stat-item label {
+      font-size: 10px;
+      color: #9E9E9E;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: block;
+      margin-bottom: 6px;
+    }
+    .stat-item .value {
+      font-size: 32px;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .stat-item .sub {
+      font-size: 11px;
+      color: #9E9E9E;
+      margin-top: 4px;
+    }
+    .value.total  { color: #212121; }
+    .value.verde  { color: #1DB954; }
+    .value.vermelho { color: #E53935; }
+
+    .chart-area {
+      width: 200px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .donut-wrap {
+      position: relative;
+      width: 150px;
+      height: 150px;
+    }
+    .donut-wrap svg { width: 150px; height: 150px; }
+    .donut-center {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+    }
+    .donut-center .pct {
+      font-size: 18px;
+      font-weight: 700;
+      color: #212121;
+      line-height: 1.1;
+    }
+    .donut-center .label {
+      font-size: 10px;
+      color: #9E9E9E;
+    }
+    .donut-legend {
+      margin-top: 10px;
+      font-size: 11px;
+      color: #424242;
+      line-height: 1.8;
+      text-align: left;
+    }
+    .donut-legend .dot-verde { color: #1DB954; }
+    .donut-legend .dot-vermelho { color: #E53935; }
+
+    .divider {
+      border: none;
+      border-top: 1px solid #E0E0E0;
+      margin: 18px 0 14px;
+    }
+    .card-footer {
+      display: flex;
+      gap: 48px;
+    }
+    .footer-item { display: flex; align-items: baseline; gap: 10px; }
+    .footer-item .ft-label { font-size: 13px; }
+    .footer-item .ft-value { font-size: 16px; font-weight: 700; }
+    .ft-label.verde, .ft-value.verde { color: #1DB954; }
+    .ft-label.vermelho, .ft-value.vermelho { color: #E53935; }
+
+    footer {
+      text-align: center;
+      font-size: 11px;
+      color: #9E9E9E;
+      margin-top: 10px;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="title">
+    <h1>Aderência de Atendimento</h1>
+    <p>Agendamento Corporativo — por unidade</p>
+  </div>
+  <div class="periodo">21/05/2026 — 21/06/2026</div>
+</header>
+
+<!-- CEM -->
+<div class="card">
+  <div class="card-header">
+    <h2>CEM</h2>
+    <span class="badge">Unidade separada</span>
+  </div>
+  <div class="card-body">
+    <div class="stats">
+      <div class="stat-item">
+        <label>Total</label>
+        <div class="value total">399</div>
+        <div class="sub">atendimentos</div>
+      </div>
+      <div class="stat-item">
+        <label>Concluídas</label>
+        <div class="value verde">365</div>
+        <div class="sub">realizadas</div>
+      </div>
+      <div class="stat-item">
+        <label>Canceladas</label>
+        <div class="value vermelho">34</div>
+        <div class="sub">não<br>realizadas</div>
+      </div>
+    </div>
+    <div class="chart-area">
+      <div class="donut-wrap">
+        <svg viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="38" fill="none" stroke="#E0E0E0" stroke-width="14"/>
+          <circle cx="50" cy="50" r="38" fill="none" stroke="#E53935" stroke-width="14"
+            stroke-dasharray="238.76" stroke-dashoffset="0"
+            transform="rotate(-90 50 50)"/>
+          <!-- Verde: 91.48% → 0.9148 * 238.76 = 218.36, gap = 20.40 -->
+          <circle cx="50" cy="50" r="38" fill="none" stroke="#1DB954" stroke-width="14"
+            stroke-dasharray="218.36 20.40"
+            stroke-dashoffset="0"
+            transform="rotate(-90 50 50)"/>
+        </svg>
+        <div class="donut-center">
+          <div class="pct">91,48%</div>
+          <div class="label">aderência</div>
+        </div>
+      </div>
+      <div class="donut-legend">
+        <span class="dot-verde">●</span> Concluídas 91,48%<br>
+        <span class="dot-vermelho">●</span> Canceladas 8,52%
+      </div>
+    </div>
+  </div>
+  <hr class="divider"/>
+  <div class="card-footer">
+    <div class="footer-item">
+      <span class="ft-label verde">Aderência</span>
+      <span class="ft-value verde">91,48%</span>
+    </div>
+    <div class="footer-item">
+      <span class="ft-label vermelho">Cancelamentos</span>
+      <span class="ft-value vermelho">8,52%</span>
+    </div>
+  </div>
+</div>
+
+<!-- CEMMA + COPLASA -->
+<div class="card">
+  <div class="card-header">
+    <h2>CEMMA + COPLASA</h2>
+    <span class="badge">Unidades agrupadas</span>
+  </div>
+  <div class="card-body">
+    <div class="stats">
+      <div class="stat-item">
+        <label>Total</label>
+        <div class="value total">565</div>
+        <div class="sub">atendimentos</div>
+      </div>
+      <div class="stat-item">
+        <label>Concluídas</label>
+        <div class="value verde">518</div>
+        <div class="sub">realizadas</div>
+      </div>
+      <div class="stat-item">
+        <label>Canceladas</label>
+        <div class="value vermelho">47</div>
+        <div class="sub">não<br>realizadas</div>
+      </div>
+    </div>
+    <div class="chart-area">
+      <div class="donut-wrap">
+        <svg viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="38" fill="none" stroke="#E0E0E0" stroke-width="14"/>
+          <circle cx="50" cy="50" r="38" fill="none" stroke="#E53935" stroke-width="14"
+            stroke-dasharray="238.76" stroke-dashoffset="0"
+            transform="rotate(-90 50 50)"/>
+          <!-- Verde: 91.68% → 0.9168 * 238.76 = 218.84, gap = 19.92 -->
+          <circle cx="50" cy="50" r="38" fill="none" stroke="#1DB954" stroke-width="14"
+            stroke-dasharray="218.84 19.92"
+            stroke-dashoffset="0"
+            transform="rotate(-90 50 50)"/>
+        </svg>
+        <div class="donut-center">
+          <div class="pct">91,68%</div>
+          <div class="label">aderência</div>
+        </div>
+      </div>
+      <div class="donut-legend">
+        <span class="dot-verde">●</span> Concluídas 91,68%<br>
+        <span class="dot-vermelho">●</span> Canceladas 8,32%
+      </div>
+    </div>
+  </div>
+  <hr class="divider"/>
+  <div class="card-footer">
+    <div class="footer-item">
+      <span class="ft-label verde">Aderência</span>
+      <span class="ft-value verde">91,68%</span>
+    </div>
+    <div class="footer-item">
+      <span class="ft-label vermelho">Cancelamentos</span>
+      <span class="ft-value vermelho">8,32%</span>
+    </div>
+  </div>
+</div>
+
+<footer>
+  Total geral: 964 atendimentos &nbsp;·&nbsp; CEM 399 &nbsp;·&nbsp; CEMMA 260 &nbsp;·&nbsp; COPLASA 305
+</footer>
+
+</body>
+</html>
