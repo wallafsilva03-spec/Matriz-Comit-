@@ -265,7 +265,8 @@ function processRows(rows) {
         const trator = isTrator(md);
         const FM = trator ? fTr : fCol;
         
-        if (!FM.has(fr)) FM.set(fr, { classif: cf, dias: new Map() });
+        if (!FM.has(fr)) FM.set(fr, { classif: cf, dias: new Map(), eqAll: new Set() });
+        if (eq) FM.get(fr).eqAll.add(eq);   // TODO equipamento alocado na frente (mesmo sem hora produtiva)
         if (!FM.get(fr).dias.has(d)) FM.get(fr).dias.set(d, acc());
         let A = FM.get(fr).dias.get(d);
         A.eq.add(eq);
@@ -347,10 +348,11 @@ function processRows(rows) {
             s.rpm_ext += d.rpm_ext;
             s.crpm_ext += d.crpm_ext;
         }
-        const nEquip = Math.round(s.n / nd) || 1;   // nº de equipamentos da frente (Qtd. Equip.)
+        // nº de equipamentos ALOCADOS na frente (todos os distintos, mesmo sem hora produtiva)
+        const nEquip = data.eqAll.size || 1;
         colFrente.push({
             frente: nm, classif: data.classif, n: nEquip,
-            // Corte + Manobra = Tempo Decimal Produtivo ÷ dias ÷ nº de máquinas (média diária por máquina)
+            // Corte + Manobra = Tempo Decimal Produtivo ÷ dias ÷ nº de equipamentos alocados na frente
             disponib: s.dis / nd, corte_manobra: s.prodTotal / nd / nEquip,
             vel_med: s.vel_col_cnt > 0 ? s.vel_col_sum / s.vel_col_cnt : 0, 
             troca_t: s.tr / nd, ag_trator: s.ag / nd, abastec: s.ab / nd, 
