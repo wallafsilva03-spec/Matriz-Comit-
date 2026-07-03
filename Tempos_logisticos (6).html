@@ -247,7 +247,8 @@ function processRows(rows) {
         // Equipamento aceita sinônimos comuns (Frota, Prefixo, etc.)
         let eq = col(r, 'Equipamento', 'Frota', 'Prefixo', 'Frota Motriz', 'Equip', 'Equipamento Motriz') || '';
         let at = String(col(r, 'Atividade') || '').toUpperCase();
-        let tp = num(col(r, 'Tempo Decimal', 'Tempo (h)', 'Tempo Decimal (h)', 'Tempo'));
+        // SOMENTE Tempo Decimal (nunca tempo efetivo)
+        let tp = num(col(r, 'Tempo Decimal', 'Tempo Decimal (h)'));
         let rpm = num(col(r, 'RPM'));
         // Velocidade NORMAL — usada em TODOS os indicadores, exceto Velocidade Média
         let vl = num(col(r, 'Velocidade'));
@@ -332,14 +333,14 @@ function processRows(rows) {
         const dias = [...data.dias.values()];
         const nd = dias.length;
         if (nd === 0) continue;
-        let s = { n: 0, dis: 0, prodTotal: 0, vel_col_sum: 0, vel_col_cnt: 0, tr: 0, ag: 0, ab: 0, rpm_ext: 0, crpm_ext: 0 };
+        let s = { n: 0, dis: 0, cm: 0, vel_col_sum: 0, vel_col_cnt: 0, tr: 0, ag: 0, ab: 0, rpm_ext: 0, crpm_ext: 0 };
         for (const d of dias) {
-            let nc = d.eq.size || 1;
+            let nc = d.eq.size || 1;   // equipamentos alocados na frente no dia (mesmo sem produzir)
             s.n += nc;
             // Disponibilidade Mecânica = (Tempo Total − Manutenção) ÷ Tempo Total × 100
             s.dis += d.total > 0 ? ((d.total - d.manut) / d.total) * 100 : 100;
-            // Corte + Manobra: acumula o TOTAL de horas produtivas da frente
-            s.prodTotal += (d.prod || 0);
+            // Corte + Manobra: MESMO padrão de Troca/Abastec/Aguard — Tempo Decimal Produtivo ÷ máquinas do dia
+            s.cm += (d.prod || 0) / nc;
             s.vel_col_sum += d.vel_col;
             s.vel_col_cnt += d.cvel_col;
             s.tr += d.troca / nc;
@@ -348,12 +349,11 @@ function processRows(rows) {
             s.rpm_ext += d.rpm_ext;
             s.crpm_ext += d.crpm_ext;
         }
-        // nº de equipamentos ALOCADOS na frente (todos os distintos, mesmo sem hora produtiva)
-        const nEquip = data.eqAll.size || 1;
+        const nEquip = Math.round(s.n / nd) || 1;   // nº de equipamentos da frente (Qtd. Equip.)
         colFrente.push({
             frente: nm, classif: data.classif, n: nEquip,
-            // Corte + Manobra = Tempo Decimal Produtivo ÷ dias ÷ nº de equipamentos alocados na frente
-            disponib: s.dis / nd, corte_manobra: s.prodTotal / nd / nEquip,
+            // Corte + Manobra = média diária de (Tempo Decimal Produtivo ÷ máquinas do dia)
+            disponib: s.dis / nd, corte_manobra: s.cm / nd,
             vel_med: s.vel_col_cnt > 0 ? s.vel_col_sum / s.vel_col_cnt : 0, 
             troca_t: s.tr / nd, ag_trator: s.ag / nd, abastec: s.ab / nd, 
             rpm_extrator: s.crpm_ext > 0 ? s.rpm_ext / s.crpm_ext : 0 
