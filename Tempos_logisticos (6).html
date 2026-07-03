@@ -198,8 +198,8 @@ function isTrator(m) {
 }
 
 function acc() { 
-    return { 
-        eq: new Set(), total: 0, prod: 0, manut: 0, corte: 0, troca: 0, ab: 0, ag: 0, 
+    return {
+        eq: new Set(), eqProd: new Set(), total: 0, prod: 0, manut: 0, corte: 0, troca: 0, ab: 0, ag: 0,
         vel_col: 0, cvel_col: 0, rpm_ext: 0, crpm_ext: 0, 
         carreg_sum: 0, carreg_cnt: 0, percurso_volta_sum: 0, percurso_volta_cnt: 0, 
         desv: 0, desch: 0, descarga_sum: 0, descarga_cnt: 0, 
@@ -237,8 +237,9 @@ function processRows(rows) {
         let cl = String(r.Classificacao_Ativ || '').toUpperCase();
         const ehCorteCana = at.includes('CORTE CANA MECANIZADO');
 
-        if (cl.includes('PRODUT')) { 
-            A.prod += tp; 
+        if (cl.includes('PRODUT')) {
+            A.prod += tp;
+            if (eq) A.eqProd.add(eq);   // conta só equipamentos que PRODUZIRAM no dia
         }
         // Velocidade Média (Tempo Efetivo) e RPM Extrator (Efetivo): captura na PRODUÇÃO ou no CORTE DE CANA
         if (!trator && (cl.includes('PRODUT') || ehCorteCana)) {
@@ -299,8 +300,9 @@ function processRows(rows) {
             s.n += nc; 
             // Disponibilidade Mecânica = (Tempo Total − Manutenção) ÷ Tempo Total × 100
             s.dis += d.total > 0 ? ((d.total - d.manut) / d.total) * 100 : 100; 
-            // Corte + Manobra = tempo PRODUTIVO (Tempo Decimal das linhas Produtivo)
-            s.cm += (d.prod || 0) / nc;
+            // Corte + Manobra = tempo PRODUTIVO médio por máquina que produziu no dia
+            const ncProd = d.eqProd.size || 1;
+            s.cm += (d.prod || 0) / ncProd;
             s.vel_col_sum += d.vel_col; 
             s.vel_col_cnt += d.cvel_col; 
             s.tr += d.troca / nc; 
