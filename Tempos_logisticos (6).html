@@ -184,12 +184,26 @@ function num(v) {
     return isNaN(x) ? 0 : x; 
 }
 
-function dia(v) { 
-    if (typeof v === 'number') { 
-        const d = new Date(Math.round((v - 25569) * 86400000)); 
-        return d.toISOString().slice(0, 10); 
-    } 
-    return String(v).slice(0, 10); 
+// Dia de TURNO: começa às 06:00 e vai até 05:59 do dia seguinte.
+// Linhas entre 00:00 e 05:59 pertencem ao dia (de turno) anterior.
+function dia(v) {
+    let y, mo, da, hh = 0, temHora = false;
+    if (typeof v === 'number') {
+        const d = new Date(Math.round((v - 25569) * 86400000));
+        y = d.getUTCFullYear(); mo = d.getUTCMonth(); da = d.getUTCDate(); hh = d.getUTCHours();
+        temHora = Math.abs(v - Math.floor(v)) > 1e-9;   // fração = hora presente
+    } else {
+        const s = String(v).trim();
+        const th = s.match(/(\d{1,2}):(\d{2})/);
+        if (th) { hh = parseInt(th[1], 10); temHora = true; }
+        let m;
+        if (m = s.match(/(\d{4})-(\d{2})-(\d{2})/)) { y = +m[1]; mo = +m[2] - 1; da = +m[3]; }
+        else if (m = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/)) { da = +m[1]; mo = +m[2] - 1; y = +m[3]; }
+        else return s.slice(0, 10);   // formato desconhecido: sem deslocamento
+    }
+    let base = new Date(Date.UTC(y, mo, da));
+    if (temHora && hh < 6) base = new Date(base.getTime() - 86400000);
+    return base.toISOString().slice(0, 10);
 }
 
 function isTrator(m) { 
