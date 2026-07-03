@@ -68,12 +68,10 @@ body { font-family: 'Barlow', sans-serif; background: #e0e8e0; padding: 20px; }
         <div class="sub">Safra 2026 · Fundo VERDE = dentro da meta | Fundo VERMELHO = fora da meta · <span id="dataAtual"></span> · <span id="periodoTexto"></span></div>
     </div>
     <div class="import-area">
-        <label class="file-label" style="background:#0f4d3a;">📂 Base EFETIVO<input type="file" id="fileInputEfetivo" accept=".xlsx,.xls,.csv"></label>
-        <label class="file-label">📂 Base MANOBRA/DESLOC<input type="file" id="fileInputManobra" accept=".xlsx,.xls,.csv"></label>
-        <label class="file-label" style="background:#5a3a0f;">📂 Base TRATORES<input type="file" id="fileInputTratores" accept=".xlsx,.xls,.csv"></label>
+        <label class="file-label">📂 Base Única<input type="file" id="fileInputBase" accept=".xlsx,.xls,.csv"></label>
         <button class="btn-reset" id="resetBtn">↺ Resetar</button>
         <button class="btn-excel" id="excelBtn">📎 Exportar Excel</button>
-        <span id="importStatus">Aguardando arquivos</span>
+        <span id="importStatus">Aguardando arquivo</span>
     </div>
 </div>
 
@@ -85,8 +83,8 @@ body { font-family: 'Barlow', sans-serif; background: #e0e8e0; padding: 20px; }
 <div class="sheet-container">
     <div id="view-colhedoras" class="view active">
         <div class="legenda-base">
-            <span class="leg-item"><span class="leg-cor grp-efetivo"></span> Colunas da <b>Base EFETIVO</b> — vêm do arquivo "Base Efetivo" (Velocidade Média e RPM Extrator)</span>
-            <span class="leg-item"><span class="leg-cor grp-manobra"></span> Colunas da <b>Base MANOBRA E DESLOCAMENTO</b> — vêm do arquivo "Base Manobra/Desloc"</span>
+            <span class="leg-item"><span class="leg-cor grp-efetivo"></span> <b>Velocidade Média</b> e <b>RPM Extrator</b> — usam as colunas <i>Velocidade Efetivo</i> e <i>RPM Extrator Efetivo</i> (Tempo Efetivo)</span>
+            <span class="leg-item"><span class="leg-cor grp-manobra"></span> Demais indicadores — usam as colunas normais da mesma base única</span>
         </div>
         <table class="excel-table" id="tabelaColhedoras">
             <thead>
@@ -216,9 +214,11 @@ function processRows(rows) {
     for (const r of rows) {
         let fr = r.Frente, md = r.Modelo || '', eq = r.Equipamento || '', at = String(r.Atividade || '').toUpperCase();
         let tp = num(r['Tempo Decimal']), rpm = num(r.RPM);
-        // Velocidade: aceita "Velocidade" (padrão) ou "Velocidade Efetivo" (base Efetivo)
-        let vl = num(r['Velocidade Efetivo'] != null ? r['Velocidade Efetivo'] : r.Velocidade);
-        // RPM Extrator: aceita "RPM Extrator Prim" ou "RPM Extrator Efetivo"
+        // Velocidade NORMAL — usada em TODOS os indicadores, exceto Velocidade Média
+        let vl = num(r.Velocidade);
+        // Velocidade EFETIVO — usada SOMENTE na Velocidade Média (Tempo Efetivo)
+        let vlEfetivo = num(r['Velocidade Efetivo'] != null ? r['Velocidade Efetivo'] : r.Velocidade);
+        // RPM Extrator — usa a coluna "RPM Extrator Efetivo" (Tempo Efetivo); fallback p/ "RPM Extrator Prim"
         let rpm_ext = num(r['RPM Extrator Efetivo'] != null ? r['RPM Extrator Efetivo'] : (r['RPM Extrator Prim'] || 0));
         if (!fr) continue;
         fr = String(fr).split(' - ')[0];
@@ -240,12 +240,12 @@ function processRows(rows) {
         if (cl.includes('PRODUT')) { 
             A.prod += tp; 
         }
-        // Velocidade Média e RPM Extrator (base EFETIVO): captura na PRODUÇÃO ou no CORTE DE CANA
+        // Velocidade Média (Tempo Efetivo) e RPM Extrator (Efetivo): captura na PRODUÇÃO ou no CORTE DE CANA
         if (!trator && (cl.includes('PRODUT') || ehCorteCana)) {
-            if (vl > 2) { 
-                A.vel_col += vl; 
-                A.cvel_col++; 
-            } 
+            if (vlEfetivo > 2) {
+                A.vel_col += vlEfetivo;
+                A.cvel_col++;
+            }
             if (rpm_ext > 350 && rpm_ext < 2200) { 
                 A.rpm_ext += rpm_ext; 
                 A.crpm_ext++; 
@@ -433,10 +433,8 @@ function renderPlanilha(colFrente, tratFrente){
     }
 }
 
-// Eventos — TRÊS bases separadas
-window.rowsEfetivo = null;   // arquivo da base EFETIVO  (colhedoras: vel média + RPM extrator)
-window.rowsManobra = null;   // arquivo da base MANOBRA/DESLOCAMENTO (colhedoras: demais indicadores)
-window.rowsTratores = null;  // arquivo da base TRATORES
+// Evento — BASE ÚNICA (todas as informações vêm daqui)
+window.rowsBase = null;
 
 // Lê um arquivo Excel/CSV e devolve as linhas
 function lerArquivo(file, callback) {
@@ -455,80 +453,29 @@ function lerArquivo(file, callback) {
     reader.readAsArrayBuffer(file);
 }
 
-// Junta as colhedoras: cada coluna vem da SUA base
-function mergeColhedoras(dataEf, dataMb) {
-    const efMap = new Map((dataEf?.colFrente || []).map(f => [f.frente, f]));
-    const mbMap = new Map((dataMb?.colFrente || []).map(f => [f.frente, f]));
-    // união de todas as frentes que aparecem em qualquer base
-    const frentes = new Set([...efMap.keys(), ...mbMap.keys()]);
-    const out = [];
-    for (const fr of frentes) {
-        const ef = efMap.get(fr) || {};
-        const mb = mbMap.get(fr) || {};
-        out.push({
-            frente: fr,
-            classif: mb.classif || ef.classif || 'Media',
-            // Quantidade de equipamentos por frente (maior contagem entre as bases)
-            n: Math.max(ef.n || 0, mb.n || 0),
-            // ---- BASE EFETIVO ----
-            vel_med: ef.vel_med || 0,
-            rpm_extrator: ef.rpm_extrator || 0,
-            // ---- BASE MANOBRA E DESLOCAMENTO ----
-            // Corte+Manobra soma o corte de cana das DUAS bases (Efetivo + Manobra)
-            corte_manobra: (ef.corte_manobra || 0) + (mb.corte_manobra || 0),
-            disponib: mb.disponib || 0,
-            troca_t: mb.troca_t || 0,
-            ag_trator: mb.ag_trator || 0,
-            abastec: mb.abastec || 0
-        });
-    }
-    return out;
-}
-
-// Recalcula tudo a partir das bases carregadas
+// Recalcula tudo a partir da base única carregada
 function rebuild() {
-    const efRows = window.rowsEfetivo || [];
-    const mbRows = window.rowsManobra || [];
-    const trRows = window.rowsTratores || [];
-    if (!efRows.length && !mbRows.length && !trRows.length) return;
+    const rows = window.rowsBase || [];
+    if (!rows.length) return;
 
-    const dataEf = efRows.length ? processRows(efRows) : null;
-    const dataMb = mbRows.length ? processRows(mbRows) : null;
-
-    // Colhedoras: cada coluna lê da sua base (Efetivo / Manobra)
-    const colFrente = mergeColhedoras(dataEf, dataMb);
-    // Tratores: lê SOMENTE do arquivo da base Tratores (igual está hoje)
-    const tratFrente = trRows.length ? processRows(trRows).tratFrente : [];
+    const data = processRows(rows);
+    // Colhedoras e Tratores saem da MESMA base única.
+    // Velocidade Média e RPM Extrator já leem as colunas "Efetivo" dentro de processRows.
+    const colFrente = data.colFrente;
+    const tratFrente = data.tratFrente;
 
     window.colData = colFrente;
     window.tratData = tratFrente;
     renderPlanilha(colFrente, tratFrente);
 
-    const efTxt = efRows.length ? `✅ Efetivo: ${efRows.length}` : '⬜ Efetivo: —';
-    const mbTxt = mbRows.length ? `✅ Manobra: ${mbRows.length}` : '⬜ Manobra: —';
-    const trTxt = trRows.length ? `✅ Tratores: ${trRows.length}` : '⬜ Tratores: —';
-    document.getElementById('importStatus').innerHTML = `${efTxt} | ${mbTxt} | ${trTxt}`;
+    document.getElementById('importStatus').innerHTML = `✅ Base: ${rows.length} linhas`;
 }
 
-document.getElementById('fileInputEfetivo').addEventListener('change', function(e) {
+document.getElementById('fileInputBase').addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (!file) return;
-    document.getElementById('importStatus').innerHTML = '⏳ Lendo base Efetivo...';
-    lerArquivo(file, rows => { window.rowsEfetivo = rows; rebuild(); });
-});
-
-document.getElementById('fileInputManobra').addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    document.getElementById('importStatus').innerHTML = '⏳ Lendo base Manobra/Desloc...';
-    lerArquivo(file, rows => { window.rowsManobra = rows; rebuild(); });
-});
-
-document.getElementById('fileInputTratores').addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    document.getElementById('importStatus').innerHTML = '⏳ Lendo base Tratores...';
-    lerArquivo(file, rows => { window.rowsTratores = rows; rebuild(); });
+    document.getElementById('importStatus').innerHTML = '⏳ Lendo base única...';
+    lerArquivo(file, rows => { window.rowsBase = rows; rebuild(); });
 });
 
 document.getElementById('resetBtn').onclick = () => location.reload();
