@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BI Executivo Logístico • Planilha por Frente</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Barlow', sans-serif; background: #e0e8e0; padding: 20px; }
+.header { display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 20px; margin-bottom: 20px; background: white; padding: 16px 24px; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.header h1 { font-size: 30px; font-weight: 800; color: #1a3a1a; }
+.sub { font-size: 15px; color: #666; margin-top: 6px; }
+.import-area { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.file-label, .btn-reset, .btn-excel { padding: 8px 18px; border-radius: 30px; font-size: 12px; font-weight: 700; cursor: pointer; border: none; transition: all 0.2s; }
+.file-label { background: #2d6a2d; color: white; }
+.btn-reset { background: #8b1a1a; color: white; }
+.btn-excel { background: #1e6f3f; color: white; }
+.file-label:hover, .btn-reset:hover, .btn-excel:hover { opacity: 0.85; transform: scale(0.98); }
+#fileInput { display: none; }
+#importStatus { font-size: 11px; color: #555; background: #f0f0f0; padding: 5px 12px; border-radius: 20px; }
+.tabs { display: flex; gap: 4px; margin-bottom: 0; background: #e8ece8; border-radius: 12px 12px 0 0; padding: 8px 12px 0 12px; }
+.tab { padding: 14px 32px; border: none; background: #c0ccc0; font-weight: 800; font-size: 18px; cursor: pointer; border-radius: 10px 10px 0 0; transition: 0.2s; color: #1a2a1a; }
+.tab.active { background: white; color: #1a5a1a; border-top: 3px solid #1a5a1a; }
+.sheet-container { background: white; border-radius: 0 0 16px 16px; overflow-x: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+.view { display: none; padding: 20px; }
+.view.active { display: block; }
+.excel-table { width: 100%; border-collapse: collapse; font-size: 19px; font-family: 'Barlow', sans-serif; min-width: 1400px; }
+.excel-table th { background: #1a3a1a; color: white; padding: 16px 10px; font-weight: 700; font-size: 17px; text-align: center; border: 1px solid #2d5a2d; white-space: nowrap; }
+.excel-table td { padding: 15px 8px; text-align: center; border: 1px solid #c8d4c8; vertical-align: middle; font-weight: 600; }
+.excel-table tr:nth-child(even) { background-color: #f5f8f5; }
+.excel-table tr:hover { background-color: #e0ecdd; }
+.meta-ok { background-color: #81c784 !important; color: #0d3d0d !important; font-weight: 800; border-radius: 4px; }
+.meta-bad { background-color: #ef9a9a !important; color: #7f0000 !important; font-weight: 800; border-radius: 4px; }
+.classe-badge { display: inline-block; padding: 5px 16px; border-radius: 20px; font-size: 15px; font-weight: 800; }
+.classe-alta { background: #1b5e1b; color: white; }
+.classe-media { background: #e6a017; color: white; }
+.classe-baixa { background: #c62828; color: white; }
+.meta-row { background: #1a3a1a !important; }
+.meta-row th { background: #1a3a1a !important; color: #ffecb3 !important; font-size: 14px; padding: 10px 6px; border: 1px solid #2d5a2d; }
+.grp-base { background: #142d14 !important; }
+.grp-efetivo { background: #0f4d3a !important; color: #d6f5e6 !important; }
+.grp-manobra { background: #1a3a1a !important; }
+.legenda-base { display: flex; gap: 24px; flex-wrap: wrap; padding: 12px 6px 16px 6px; font-size: 15px; color: #1a3a1a; }
+.legenda-base .leg-item { display: flex; align-items: center; gap: 8px; }
+.legenda-base .leg-cor { width: 22px; height: 14px; border-radius: 4px; display: inline-block; }
+.footer-info { margin-top: 16px; font-size: 15px; color: #555; text-align: right; padding: 12px; background: #f0f5f0; border-radius: 12px; }
+@media print {
+  @page { size: A4 landscape; margin: 8mm; }
+  body { background: white; padding: 0; }
+  .import-area, .tabs, .btn-excel { display: none; }
+  .view { display: none !important; padding: 0 !important; }
+  .view.active { display: block !important; }
+  .sheet-container { box-shadow: none; overflow: visible; }
+  .excel-table { min-width: 0 !important; width: 100% !important; font-size: 13px; }
+  .excel-table th { font-size: 11px; padding: 8px 5px; }
+  .excel-table td { font-size: 12px; padding: 8px 4px; }
+  .meta-ok, .meta-bad, .classe-badge, .excel-table th, .meta-row th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+    <div>
+        <h1>📊 BI Executivo • Planilha por Frente</h1>
+        <div class="sub">Safra 2026 · Fundo VERDE = dentro da meta | Fundo VERMELHO = fora da meta · <span id="dataAtual"></span> · <span id="periodoTexto"></span></div>
+    </div>
+    <div class="import-area">
+        <label class="file-label" style="background:#0f4d3a;">📂 Base EFETIVO<input type="file" id="fileInputEfetivo" accept=".xlsx,.xls,.csv"></label>
+        <label class="file-label">📂 Base MANOBRA/DESLOC<input type="file" id="fileInputManobra" accept=".xlsx,.xls,.csv"></label>
+        <label class="file-label" style="background:#5a3a0f;">📂 Base TRATORES<input type="file" id="fileInputTratores" accept=".xlsx,.xls,.csv"></label>
+        <button class="btn-reset" id="resetBtn">↺ Resetar</button>
+        <button class="btn-excel" id="excelBtn">📎 Exportar Excel</button>
+        <span id="importStatus">Aguardando arquivos</span>
+    </div>
+</div>
+
+<div class="tabs">
+    <button class="tab active" data-view="colhedoras">🚜 COLHEDORAS por Frente</button>
+    <button class="tab" data-view="tratores">🚛 TRATORES por Frente</button>
+</div>
+
+<div class="sheet-container">
+    <div id="view-colhedoras" class="view active">
+        <div class="legenda-base">
+            <span class="leg-item"><span class="leg-cor grp-efetivo"></span> Colunas da <b>Base EFETIVO</b> — vêm do arquivo "Base Efetivo" (Velocidade Média e RPM Extrator)</span>
+            <span class="leg-item"><span class="leg-cor grp-manobra"></span> Colunas da <b>Base MANOBRA E DESLOCAMENTO</b> — vêm do arquivo "Base Manobra/Desloc"</span>
+        </div>
+        <table class="excel-table" id="tabelaColhedoras">
+            <thead>
+                <tr style="background:#1a3a1a;">
+                    <th width="120" class="grp-base">Frente</th><th width="80" class="grp-base">Classe</th>
+                    <th width="90" class="grp-base">Qtd. Equip.</th>
+                    <th width="140" class="grp-manobra">Disponibilidade (%)</th>
+                    <th width="150" class="grp-manobra">Corte+Manobra (h)</th>
+                    <th width="140" class="grp-efetivo">Velocidade Média</th>
+                    <th width="110" class="grp-manobra">Troca Turno (h)</th>
+                    <th width="130" class="grp-manobra">Aguard. Trator (h)</th>
+                    <th width="120" class="grp-manobra">Abastec. (h)</th>
+                    <th width="140" class="grp-efetivo">RPM Extrator</th>
+                </tr>
+                <tr class="meta-row">
+                    <th colspan="3">📌 META por Classe →</th>
+                    <th>Alta:83.84% | Média:83.22% | Baixa:82.40%</th>
+                    <th>Alta:≥13h | Média:≥12h | Baixa:≥10h</th>
+                    <th>Alta:≥4.59 | Média:≥4.98 | Baixa:≥4.69</th>
+                    <th colspan="2"></th>
+                    <th colspan="2"></th>
+                </tr>
+            </thead>
+            <tbody id="colhedorasBody">
+                <tr><td colspan="10" style="text-align:center; padding:40px;">📥 Importe o arquivo Excel</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div id="view-tratores" class="view">
+        <table class="excel-table" id="tabelaTratores">
+            <thead>
+                <tr style="background:#1a3a1a;">
+                    <th width="120">Frente</th><th width="80">Classe</th>
+                    <th width="90">Qtd. Equip.</th>
+                    <th width="130">Disponib. (%)</th>
+                    <th width="140">Carregamento (min)</th>
+                    <th width="130">Desloc Vazio (min)</th>
+                    <th width="130">Veloc Vazia</th>
+                    <th width="130">Veloc Carregada</th>
+                    <th width="140">Descarreg. (min)</th>
+                    <th width="150">Dist. Carregada (min)</th>
+                    <th width="150">RPM Descarreg.</th>
+                    <th width="130">Tempo Ciclo (min)</th>
+                </tr>
+                <tr class="meta-row">
+                    <th colspan="3">📌 META por Classe →</th>
+                    <th>85%</th>
+                    <th>Alta:≤35.1 | Média:≤36.9 | Baixa:≤46.8</th>
+                    <th>Alta:≤4.25 | Média:≤4.75 | Baixa:≤7.29</th>
+                    <th>Alta:≥18 | Média:≥12 | Baixa:≥10</th>
+                    <th>Alta:≥14 | Média:≥10 | Baixa:≥8</th>
+                    <th></th>
+                    <th></th>
+                    <th>🎯 META: 1000 a 1200 RPM</th>
+                    <th>Alta:≤46.9 | Média:≤50.9 | Baixa:≤68.3</th>
+                </tr>
+            </thead>
+            <tbody id="tratoresBody">
+                <tr><td colspan="12" style="text-align:center; padding:40px;">📥 Importe o arquivo Excel</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+<div class="footer-info">
+    ✅ <strong>REGRAS:</strong> Fundo <span style="background:#a5d6a5; color:#1a3a1a; padding:2px 8px; border-radius:12px;">VERDE CLARO</span> = dentro da meta | 
+    Fundo <span style="background:#ffcdd2; color:#b71c1c; padding:2px 8px; border-radius:12px;">VERMELHO CLARO</span> = fora da meta<br>
+    🎯 <strong>RPM Descarregamento:</strong> Meta entre 1000 e 1200 RPM (verde se dentro da faixa)
+</div>
+
+<script>
+const METAS_COL = {
+    disponib: { Alta: 83.84, Media: 83.22, Baixa: 82.40 },
+    corte_manobra: { Alta: 13, Media: 12, Baixa: 10 },
+    vel_med: { Alta: 4.59, Media: 4.98, Baixa: 4.69 }
+};
+
+const METAS_TRAT = {
+    carreg: { Alta: 35.07, Media: 36.92, Baixa: 46.78 },
+    desvazio: { Alta: 4.25, Media: 4.75, Baixa: 7.29 },
+    velv: { Alta: 18, Media: 12, Baixa: 10 },
+    velc: { Alta: 14, Media: 10, Baixa: 8 },
+    ciclo: { Alta: 46.87, Media: 50.87, Baixa: 68.34 },
+    rpm: { min: 1000, max: 1200 }  // Meta RPM de descarregamento
+};
+
+const CLASSF = { '4':'Alta', '6':'Alta', '7':'Media', '3':'Media', '2':'Baixa', '5':'Baixa', '8':'Baixa' };
+
+function classif(frente) { 
+    let n = String(frente).match(/\d+/); 
+    return n ? (CLASSF[n[0]] || 'Media') : 'Media'; 
+}
+
+function num(v) { 
+    if (typeof v === 'number') return v; 
+    let x = parseFloat(String(v || 0).replace(',', '.')); 
+    return isNaN(x) ? 0 : x; 
+}
+
+function dia(v) { 
+    if (typeof v === 'number') { 
+        const d = new Date(Math.round((v - 25569) * 86400000)); 
+        return d.toISOString().slice(0, 10); 
+    } 
+    return String(v).slice(0, 10); 
+}
+
+function isTrator(m) { 
+    m = String(m || '').toUpperCase(); 
+    return m.includes('PUMA') || m.includes('IH 260') || m.includes('TRATOR'); 
+}
+
+function acc() { 
+    return { 
+        eq: new Set(), total: 0, prod: 0, manut: 0, corte: 0, troca: 0, ab: 0, ag: 0, 
+        vel_col: 0, cvel_col: 0, rpm_ext: 0, crpm_ext: 0, 
+        carreg_sum: 0, carreg_cnt: 0, percurso_volta_sum: 0, percurso_volta_cnt: 0, 
+        desv: 0, desch: 0, descarga_sum: 0, descarga_cnt: 0, 
+        velcheio_sum: 0, velcheio_cnt: 0, velvazio_sum: 0, velvazio_cnt: 0, 
+        rpm: 0, crpm: 0 
+    }; 
+}
+
+function processRows(rows) {
+    const fCol = new Map(), fTr = new Map(), datas = new Set();
+    
+    for (const r of rows) {
+        let fr = r.Frente, md = r.Modelo || '', eq = r.Equipamento || '', at = String(r.Atividade || '').toUpperCase();
+        let tp = num(r['Tempo Decimal']), rpm = num(r.RPM);
+        // Velocidade: aceita "Velocidade" (padrão) ou "Velocidade Efetivo" (base Efetivo)
+        let vl = num(r['Velocidade Efetivo'] != null ? r['Velocidade Efetivo'] : r.Velocidade);
+        // RPM Extrator: aceita "RPM Extrator Prim" ou "RPM Extrator Efetivo"
+        let rpm_ext = num(r['RPM Extrator Efetivo'] != null ? r['RPM Extrator Efetivo'] : (r['RPM Extrator Prim'] || 0));
+        if (!fr) continue;
+        fr = String(fr).split(' - ')[0];
+        const d = dia(r.Data); 
+        datas.add(d);
+        const cf = classif(fr);
+        const trator = isTrator(md);
+        const FM = trator ? fTr : fCol;
+        
+        if (!FM.has(fr)) FM.set(fr, { classif: cf, dias: new Map() });
+        if (!FM.get(fr).dias.has(d)) FM.get(fr).dias.set(d, acc());
+        let A = FM.get(fr).dias.get(d);
+        A.eq.add(eq);
+        A.total += tp;   // Tempo Total = soma de TODOS os tempos do dia
+        
+        let cl = String(r.Classificacao_Ativ || '').toUpperCase();
+        const ehCorteCana = at.includes('CORTE CANA MECANIZADO');
+
+        if (cl.includes('PRODUT')) { 
+            A.prod += tp; 
+        }
+        // Velocidade Média e RPM Extrator (base EFETIVO): captura na PRODUÇÃO ou no CORTE DE CANA
+        if (!trator && (cl.includes('PRODUT') || ehCorteCana)) {
+            if (vl > 2) { 
+                A.vel_col += vl; 
+                A.cvel_col++; 
+            } 
+            if (rpm_ext > 350 && rpm_ext < 2200) { 
+                A.rpm_ext += rpm_ext; 
+                A.crpm_ext++; 
+            } 
+        }
+        
+        if (cl.includes('MANUT')) A.manut += tp;
+        
+        if (!trator) {
+            if (at.includes('CORTE CANA MECANIZADO')) A.corte = (A.corte || 0) + tp;
+            if (at.includes('CARREGAMENTO TRANSBORDO')) A.corte = (A.corte || 0) + tp;
+        }
+        
+        if (at.includes('TROCA') && at.includes('TURNO')) A.troca += tp;
+        if (at.includes('ABASTEC')) A.ab += tp;
+        if (at.includes('AGUARDANDO TRATOR')) A.ag += tp;
+        
+        if (at.includes('CARREGAMENTO TRANSBORDO')) { 
+            A.carreg_sum += tp; 
+            A.carreg_cnt++; 
+            if (vl > 7) { 
+                A.velcheio_sum += vl; 
+                A.velcheio_cnt++; 
+            } 
+        }
+        if (at.includes('PERCURSO VOLTA ATE PONTO CAR')) { 
+            A.percurso_volta_sum += tp; 
+            A.percurso_volta_cnt++; 
+        }
+        if (at.includes('DESLOCAMENTO VAZIO')) { 
+            A.desv += tp; 
+            if (vl > 0) { 
+                A.velvazio_sum += vl; 
+                A.velvazio_cnt++; 
+            } 
+        }
+        if (at.includes('DESLOCAMENTO CHEIO') || at.includes('DESLOC CHEIO') || at.includes('TRANSPORTE CHEIO')) A.desch += tp;
+        if (at.includes('DESCARREG')) { 
+            A.descarga_sum += tp; 
+            A.descarga_cnt++; 
+            if (rpm > 0) { 
+                A.rpm += rpm; 
+                A.crpm++; 
+            } 
+        }
+    }
+
+    const colFrente = [];
+    for (let [nm, data] of fCol.entries()) {
+        const dias = [...data.dias.values()];
+        const nd = dias.length;
+        if (nd === 0) continue;
+        let s = { n: 0, dis: 0, cm: 0, vel_col_sum: 0, vel_col_cnt: 0, tr: 0, ag: 0, ab: 0, rpm_ext: 0, crpm_ext: 0 };
+        for (const d of dias) { 
+            let nc = d.eq.size || 1; 
+            s.n += nc; 
+            // Disponibilidade Mecânica = (Tempo Total − Manutenção) ÷ Tempo Total × 100
+            s.dis += d.total > 0 ? ((d.total - d.manut) / d.total) * 100 : 100; 
+            s.cm += (d.corte || 0) / nc;
+            s.vel_col_sum += d.vel_col; 
+            s.vel_col_cnt += d.cvel_col; 
+            s.tr += d.troca / nc; 
+            s.ag += d.ag / nc; 
+            s.ab += d.ab / nc; 
+            s.rpm_ext += d.rpm_ext; 
+            s.crpm_ext += d.crpm_ext; 
+        }
+        colFrente.push({ 
+            frente: nm, classif: data.classif, n: Math.round(s.n / nd), 
+            disponib: s.dis / nd, corte_manobra: s.cm / nd, 
+            vel_med: s.vel_col_cnt > 0 ? s.vel_col_sum / s.vel_col_cnt : 0, 
+            troca_t: s.tr / nd, ag_trator: s.ag / nd, abastec: s.ab / nd, 
+            rpm_extrator: s.crpm_ext > 0 ? s.rpm_ext / s.crpm_ext : 0 
+        });
+    }
+    
+    const tratFrente = [];
+    for (let [nm, data] of fTr.entries()) {
+        const dias = [...data.dias.values()];
+        const nd = dias.length;
+        if (nd === 0) continue;
+        let s = { n: 0, disp: 0, carreg_sum: 0, carreg_cnt: 0, percurso_volta_sum: 0, percurso_volta_cnt: 0, dv: 0, descarga_sum: 0, descarga_cnt: 0, velcheio_sum: 0, velcheio_cnt: 0, velvazio_sum: 0, velvazio_cnt: 0, rpm: 0, crpm: 0, desv: 0 };
+        for (const d of dias) { 
+            let nc = d.eq.size || 1; 
+            s.n += nc; 
+            // Disponibilidade Mecânica = (Tempo Total − Manutenção) ÷ Tempo Total × 100
+            s.disp += d.total > 0 ? ((d.total - d.manut) / d.total) * 100 : 100; 
+            s.carreg_sum += d.carreg_sum; 
+            s.carreg_cnt += d.carreg_cnt; 
+            s.percurso_volta_sum += d.percurso_volta_sum; 
+            s.percurso_volta_cnt += d.percurso_volta_cnt; 
+            s.dv += d.desv / nc; 
+            s.descarga_sum += d.descarga_sum; 
+            s.descarga_cnt += d.descarga_cnt; 
+            s.velcheio_sum += d.velcheio_sum; 
+            s.velcheio_cnt += d.velcheio_cnt; 
+            s.velvazio_sum += d.velvazio_sum; 
+            s.velvazio_cnt += d.velvazio_cnt; 
+            s.rpm += d.crpm ? d.rpm / d.crpm : 0; 
+            s.desv += d.desch / nc; 
+        }
+        const carreg = (s.carreg_sum / (s.carreg_cnt || 1)) * 60;
+        const percursoVolta = (s.percurso_volta_sum / (s.percurso_volta_cnt || 1)) * 60;
+        const desvazioOrig = s.dv / nd;
+        const descarga = (s.descarga_sum / (s.descarga_cnt || 1)) * 60;
+        // deslocamento total = vazio + carregado; redistribui 30% vazio / 70% carregado
+        const deslocTotal = desvazioOrig + percursoVolta;
+        const deslocVazio = deslocTotal * 0.30;
+        const deslocCarregado = deslocTotal * 0.70;
+        const ciclo = carreg + deslocVazio + deslocCarregado + descarga;
+        const rpmMedio = s.rpm / nd;
+        tratFrente.push({ 
+            frente: nm, classif: data.classif, n: Math.round(s.n / nd), 
+            disp: s.disp / nd, carreg: carreg, desvazio: deslocVazio, 
+            velvazio: s.velvazio_sum / (s.velvazio_cnt || 1), 
+            velcheio: s.velcheio_sum / (s.velcheio_cnt || 1), 
+            descarga: descarga, distancia_carregada: deslocCarregado, 
+            rpm: rpmMedio, ciclo: ciclo 
+        });
+    }
+    
+    let arr = [...datas].sort();
+    if (arr.length) document.getElementById('periodoTexto').innerText = `${arr[0]} a ${arr[arr.length-1]} (${arr.length} dias)`;
+    return { colFrente, tratFrente };
+}
+
+function renderPlanilha(colFrente, tratFrente){
+    // COLHEDORAS — tabela única com colunas agrupadas por base (Efetivo | Manobra+Desloc)
+    const colBody = document.getElementById('colhedorasBody');
+    if (!colFrente.length) {
+        colBody.innerHTML = '<tr><td colspan="10" style="text-align:center;">Nenhuma frente de colhedora encontrada</td></tr>';
+    } else {
+        colBody.innerHTML = colFrente.map(f => {
+            const classe = f.classif;
+            const velOK = f.vel_med >= METAS_COL.vel_med[classe];
+            const dispOK = f.disponib >= METAS_COL.disponib[classe];
+            const corteOK = f.corte_manobra >= METAS_COL.corte_manobra[classe];
+
+            return `<tr>
+                <td style="text-align:left; font-weight:700;">${f.frente}</td>
+                <td><span class="classe-badge classe-${classe === 'Alta' ? 'alta' : (classe === 'Media' ? 'media' : 'baixa')}">${classe}</span></td>
+                <td style="font-weight:700;">${f.n}</td>
+                <td class="${dispOK ? 'meta-ok' : 'meta-bad'}">${f.disponib.toFixed(1)}%</td>
+                <td class="${corteOK ? 'meta-ok' : 'meta-bad'}">${f.corte_manobra.toFixed(2)}h</td>
+                <td class="${velOK ? 'meta-ok' : 'meta-bad'}">${f.vel_med.toFixed(2)} km/h</td>
+                <td>${f.troca_t.toFixed(2)}h</td>
+                <td>${f.ag_trator.toFixed(2)}h</td>
+                <td>${f.abastec.toFixed(2)}h</td>
+                <td>${f.rpm_extrator > 0 ? f.rpm_extrator.toFixed(0) + ' rpm' : '—'}</td>
+            </tr>`;
+        }).join('');
+    }
+    
+    // TRATORES
+    const tratBody = document.getElementById('tratoresBody');
+    if (!tratFrente.length) {
+        tratBody.innerHTML = '<tr><td colspan="12" style="text-align:center;">Nenhuma frente de trator encontrada</td></tr>';
+    } else {
+        tratBody.innerHTML = tratFrente.map(f => {
+            const classe = f.classif;
+            const carregOK = f.carreg <= METAS_TRAT.carreg[classe];
+            const desvOK = f.desvazio <= METAS_TRAT.desvazio[classe];
+            const velvOK = f.velvazio >= METAS_TRAT.velv[classe];
+            const velcOK = f.velcheio >= METAS_TRAT.velc[classe];
+            const cicloOK = f.ciclo <= METAS_TRAT.ciclo[classe];
+            const dispOK = f.disp >= 85;
+            // RPM: meta entre 1000 e 1200
+            const rpmOK = f.rpm >= METAS_TRAT.rpm.min && f.rpm <= METAS_TRAT.rpm.max;
+            
+            return `<tr>
+                <td style="text-align:left; font-weight:700;">${f.frente}</td>
+                <td><span class="classe-badge classe-${classe === 'Alta' ? 'alta' : (classe === 'Media' ? 'media' : 'baixa')}">${classe}</span></td>
+                <td style="font-weight:700;">${f.n}</td>
+                <td class="${dispOK ? 'meta-ok' : 'meta-bad'}">${f.disp.toFixed(1)}%</td>
+                <td class="${carregOK ? 'meta-ok' : 'meta-bad'}">${f.carreg.toFixed(2)}</td>
+                <td class="${desvOK ? 'meta-ok' : 'meta-bad'}">${f.desvazio.toFixed(2)}</td>
+                <td class="${velvOK ? 'meta-ok' : 'meta-bad'}">${f.velvazio.toFixed(2)}</td>
+                <td class="${velcOK ? 'meta-ok' : 'meta-bad'}">${f.velcheio.toFixed(2)}</td>
+                <td>${f.descarga.toFixed(2)}</td>
+                <td>${f.distancia_carregada.toFixed(2)}</td>
+                <td class="${rpmOK ? 'meta-ok' : 'meta-bad'}">${f.rpm.toFixed(0)} rpm</td>
+                <td class="${cicloOK ? 'meta-ok' : 'meta-bad'}">${f.ciclo.toFixed(2)}</td>
+            </tr>`;
+        }).join('');
+    }
+}
+
+// Eventos — TRÊS bases separadas
+window.rowsEfetivo = null;   // arquivo da base EFETIVO  (colhedoras: vel média + RPM extrator)
+window.rowsManobra = null;   // arquivo da base MANOBRA/DESLOCAMENTO (colhedoras: demais indicadores)
+window.rowsTratores = null;  // arquivo da base TRATORES
+
+// Lê um arquivo Excel/CSV e devolve as linhas
+function lerArquivo(file, callback) {
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+        try {
+            const data = new Uint8Array(evt.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+            callback(XLSX.utils.sheet_to_json(firstSheet));
+        } catch (error) {
+            console.error(error);
+            document.getElementById('importStatus').innerHTML = '❌ Erro ao processar arquivo';
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+// Junta as colhedoras: cada coluna vem da SUA base
+function mergeColhedoras(dataEf, dataMb) {
+    const efMap = new Map((dataEf?.colFrente || []).map(f => [f.frente, f]));
+    const mbMap = new Map((dataMb?.colFrente || []).map(f => [f.frente, f]));
+    // união de todas as frentes que aparecem em qualquer base
+    const frentes = new Set([...efMap.keys(), ...mbMap.keys()]);
+    const out = [];
+    for (const fr of frentes) {
+        const ef = efMap.get(fr) || {};
+        const mb = mbMap.get(fr) || {};
+        out.push({
+            frente: fr,
+            classif: mb.classif || ef.classif || 'Media',
+            // Quantidade de equipamentos por frente (maior contagem entre as bases)
+            n: Math.max(ef.n || 0, mb.n || 0),
+            // ---- BASE EFETIVO ----
+            vel_med: ef.vel_med || 0,
+            rpm_extrator: ef.rpm_extrator || 0,
+            // ---- BASE MANOBRA E DESLOCAMENTO ----
+            // Corte+Manobra soma o corte de cana das DUAS bases (Efetivo + Manobra)
+            corte_manobra: (ef.corte_manobra || 0) + (mb.corte_manobra || 0),
+            disponib: mb.disponib || 0,
+            troca_t: mb.troca_t || 0,
+            ag_trator: mb.ag_trator || 0,
+            abastec: mb.abastec || 0
+        });
+    }
+    return out;
+}
+
+// Recalcula tudo a partir das bases carregadas
+function rebuild() {
+    const efRows = window.rowsEfetivo || [];
+    const mbRows = window.rowsManobra || [];
+    const trRows = window.rowsTratores || [];
+    if (!efRows.length && !mbRows.length && !trRows.length) return;
+
+    const dataEf = efRows.length ? processRows(efRows) : null;
+    const dataMb = mbRows.length ? processRows(mbRows) : null;
+
+    // Colhedoras: cada coluna lê da sua base (Efetivo / Manobra)
+    const colFrente = mergeColhedoras(dataEf, dataMb);
+    // Tratores: lê SOMENTE do arquivo da base Tratores (igual está hoje)
+    const tratFrente = trRows.length ? processRows(trRows).tratFrente : [];
+
+    window.colData = colFrente;
+    window.tratData = tratFrente;
+    renderPlanilha(colFrente, tratFrente);
+
+    const efTxt = efRows.length ? `✅ Efetivo: ${efRows.length}` : '⬜ Efetivo: —';
+    const mbTxt = mbRows.length ? `✅ Manobra: ${mbRows.length}` : '⬜ Manobra: —';
+    const trTxt = trRows.length ? `✅ Tratores: ${trRows.length}` : '⬜ Tratores: —';
+    document.getElementById('importStatus').innerHTML = `${efTxt} | ${mbTxt} | ${trTxt}`;
+}
+
+document.getElementById('fileInputEfetivo').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    document.getElementById('importStatus').innerHTML = '⏳ Lendo base Efetivo...';
+    lerArquivo(file, rows => { window.rowsEfetivo = rows; rebuild(); });
+});
+
+document.getElementById('fileInputManobra').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    document.getElementById('importStatus').innerHTML = '⏳ Lendo base Manobra/Desloc...';
+    lerArquivo(file, rows => { window.rowsManobra = rows; rebuild(); });
+});
+
+document.getElementById('fileInputTratores').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    document.getElementById('importStatus').innerHTML = '⏳ Lendo base Tratores...';
+    lerArquivo(file, rows => { window.rowsTratores = rows; rebuild(); });
+});
+
+document.getElementById('resetBtn').onclick = () => location.reload();
+
+document.getElementById('excelBtn').onclick = function() {
+    if (!window.colData && !window.tratData) { alert('Importe os dados primeiro'); return; }
+    const wsCol = XLSX.utils.json_to_sheet((window.colData || []).map(f => ({
+        Frente: f.frente, Classe: f.classif, Qtd_Equipamentos: f.n,
+        Disponibilidade: f.disponib.toFixed(1)+'%', 
+        Corte_Manobra: f.corte_manobra.toFixed(2)+'h', Velocidade_Media: f.vel_med.toFixed(2),
+        Troca_Turno: f.troca_t.toFixed(2)+'h', Aguard_Trator: f.ag_trator.toFixed(2)+'h',
+        Abastecimento: f.abastec.toFixed(2)+'h', RPM_Extrator: f.rpm_extrator>0 ? f.rpm_extrator.toFixed(0)+' rpm' : '—'
+    })));
+    const wsTrat = XLSX.utils.json_to_sheet((window.tratData || []).map(f => ({
+        Frente: f.frente, Classe: f.classif, Qtd_Equipamentos: f.n,
+        Disponibilidade: f.disp.toFixed(1)+'%',
+        Carregamento_min: f.carreg.toFixed(2), Desloc_Vazio_min: f.desvazio.toFixed(2),
+        Veloc_Vazia: f.velvazio.toFixed(2), Veloc_Carregada: f.velcheio.toFixed(2),
+        Descarregamento_min: f.descarga.toFixed(2), Dist_Carregada_min: f.distancia_carregada.toFixed(2),
+        RPM_Descarregamento: f.rpm.toFixed(0), Tempo_Ciclo_min: f.ciclo.toFixed(2)
+    })));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, wsCol, 'Colhedoras');
+    XLSX.utils.book_append_sheet(wb, wsTrat, 'Tratores');
+    XLSX.writeFile(wb, `BI_Frentes_${new Date().toISOString().slice(0,10)}.xlsx`);
+};
+
+document.querySelectorAll('.tab').forEach(btn => { 
+    btn.addEventListener('click', function() { 
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active')); 
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active')); 
+        document.getElementById(`view-${this.getAttribute('data-view')}`).classList.add('active'); 
+        this.classList.add('active'); 
+    }); 
+});
+
+document.getElementById('dataAtual').innerText = new Date().toLocaleDateString('pt-BR');
+</script>
+</body>
+</html>
