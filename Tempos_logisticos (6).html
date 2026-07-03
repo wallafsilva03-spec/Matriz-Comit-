@@ -253,12 +253,7 @@ function processRows(rows) {
         }
         
         if (cl.includes('MANUT')) A.manut += tp;
-        
-        if (!trator) {
-            if (at.includes('CORTE CANA MECANIZADO')) A.corte = (A.corte || 0) + tp;
-            if (at.includes('CARREGAMENTO TRANSBORDO')) A.corte = (A.corte || 0) + tp;
-        }
-        
+
         if (at.includes('TROCA') && at.includes('TURNO')) A.troca += tp;
         if (at.includes('ABASTEC')) A.ab += tp;
         if (at.includes('AGUARDANDO TRATOR')) A.ag += tp;
@@ -304,7 +299,8 @@ function processRows(rows) {
             s.n += nc; 
             // Disponibilidade Mecânica = (Tempo Total − Manutenção) ÷ Tempo Total × 100
             s.dis += d.total > 0 ? ((d.total - d.manut) / d.total) * 100 : 100; 
-            s.cm += (d.corte || 0) / nc;
+            // Corte + Manobra = tempo PRODUTIVO (Tempo Decimal das linhas Produtivo)
+            s.cm += (d.prod || 0) / nc;
             s.vel_col_sum += d.vel_col; 
             s.vel_col_cnt += d.cvel_col; 
             s.tr += d.troca / nc; 
